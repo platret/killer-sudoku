@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft,
@@ -7,7 +7,9 @@ import {
   Flame,
   Lightbulb,
   Sparkles,
-  Trophy
+  Trophy,
+  Calendar,
+  History
 } from 'lucide-react';
 import { HomeBackdrop } from '@/components/animations/HomeBackdrop';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -16,8 +18,8 @@ import { EmptyState } from '@/components/animations/EmptyState';
 import { HistoryChart } from '@/components/stats/HistoryChart';
 import { useApp } from '@/lib/store';
 import { api } from '@/lib/ipc';
-import { difficultyLabel, formatTime } from '@/lib/utils';
-import type { SolveHistoryEntry, UserStats } from '@shared/types';
+import { cn, difficultyLabel, formatTime } from '@/lib/utils';
+import type { SolveHistoryEntry, UserStats, StreakInfo } from '@shared/types';
 
 interface MetricCardProps {
   icon: JSX.Element;
@@ -56,11 +58,54 @@ function MetricCard({ icon, label, value, accent, animated }: MetricCardProps): 
   );
 }
 
+function Heatmap({ entries }: { entries: SolveHistoryEntry[] }): JSX.Element {
+  const today = new Date();
+  const days = Array.from({ length: 56 }, (_, i) => {
+    const d = new Date();
+    d.setDate(today.getDate() - (55 - i));
+    return d.toISOString().split('T')[0];
+  });
+
+  const solveCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    entries.forEach((e) => {
+      const d = e.completedAt.split(' ')[0];
+      counts[d] = (counts[d] || 0) + 1;
+    });
+    return counts;
+  }, [entries]);
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {days.map((d) => {
+        const count = solveCounts[d] || 0;
+        return (
+          <div
+            key={d}
+            title={`${d}: ${count} solve${count === 1 ? '' : 's'}`}
+            className={cn(
+              'h-3 w-3 rounded-[2px] transition-colors',
+              count === 0
+                ? 'bg-line/20'
+                : count === 1
+                  ? 'bg-accent/30'
+                  : count === 2
+                    ? 'bg-accent/60'
+                    : 'bg-accent shadow-glow'
+            )}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function StatsPage(): JSX.Element {
   const user = useApp((s) => s.user);
   const setView = useApp((s) => s.setView);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [history, setHistory] = useState<SolveHistoryEntry[]>([]);
+  const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -68,11 +113,13 @@ export function StatsPage(): JSX.Element {
     setLoading(true);
     void Promise.all([
       api().result.stats({ userId: user.id }),
-      api().result.history({ userId: user.id, limit: 30 })
+      api().result.history({ userId: user.id, limit: 100 }),
+      api().result.streak({ userId: user.id })
     ])
-      .then(([s, h]) => {
+      .then(([s, h, str]) => {
         setStats(s);
         setHistory(h.entries);
+        setStreak(str);
       })
       .finally(() => setLoading(false));
   }, [user]);
@@ -89,7 +136,7 @@ export function StatsPage(): JSX.Element {
         </button>
 
         <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
-          <div>
+          <div className="flex-1 min-w-[280px]">
             <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-glow mb-3 inline-flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-glow shadow-glowCyan" />
               Profile
@@ -100,9 +147,32 @@ export function StatsPage(): JSX.Element {
                 {user?.username}
               </span>
             </h1>
-            <p className="text-sm text-ink-muted mt-3">
-              How you have been solving on this machine.
-            </p>
+            <div className="flex items-center gap-4 mt-4">
+              <div className="px-4 py-2 rounded-xl bg-bg-panel border border-accent/20 flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-ink-muted">Level</span>
+                <span className="text-2xl font-bold text-accent">{user?.level ?? 1}</span>
+              </div>
+              <div className="flex-1 max-w-[200px]">
+                <div className="flex justify-between items-end mb-1">
+                  <span className="text-[10px] uppercase tracking-wider text-ink-muted">XP</span>
+                  <span className="text-xs font-mono text-ink">
+                    {user?.xp ?? 0} / {(user?.level ?? 1) * (user?.level ?? 1) * 100}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-bg-panel border border-line/40 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${Math.max(0, Math.min(
+                        100,
+                        (user?.xp ?? 0) / (Math.max(1, (user?.level ?? 1) * (user?.level ?? 1) * 100)) * 100
+                      ))}%`
+                    }}
+                    className="h-full bg-accent shadow-glow"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -169,6 +239,23 @@ export function StatsPage(): JSX.Element {
                 transition={{ delay: 0.25 }}
                 className="mb-8"
               >
+                <div className="rounded-xl border border-line/70 bg-bg-panel/55 backdrop-blur-md p-6">
+                   <h2 className="text-sm font-semibold font-display text-ink uppercase tracking-wider inline-flex items-center gap-2 mb-6">
+                    <Calendar className="h-4 w-4 text-ink-muted" />
+                    Activity Heatmap
+                  </h2>
+                  <Heatmap entries={history} />
+                </div>
+              </motion.div>
+            ) : null}
+
+            {history.length > 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="mb-8"
+              >
                 <HistoryChart entries={history} />
               </motion.div>
             ) : null}
@@ -227,6 +314,34 @@ export function StatsPage(): JSX.Element {
                     </div>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="rounded-xl border border-magenta-glow/30 bg-bg-panel/55 backdrop-blur-md p-6 mt-8"
+            >
+              <h2 className="text-sm font-semibold font-display text-ink uppercase tracking-wider inline-flex items-center gap-2 mb-6">
+                <History className="h-4 w-4 text-magenta-glow" />
+                Personal Records
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="surface p-4">
+                  <p className="text-[10px] text-ink-muted uppercase tracking-wider mb-2">Longest Streak</p>
+                  <p className="text-2xl font-bold text-magenta-glow">{stats.totalSolved > 0 ? (streak?.longestStreak || 0) : 0} days</p>
+                </div>
+                <div className="surface p-4">
+                  <p className="text-[10px] text-ink-muted uppercase tracking-wider mb-2">Total Hours</p>
+                  <p className="text-2xl font-bold text-cyan-glow">
+                    {stats.avgTimeSeconds ? Math.floor((stats.avgTimeSeconds * stats.totalSolved) / 3600) : 0} hrs
+                  </p>
+                </div>
+                <div className="surface p-4">
+                  <p className="text-[10px] text-ink-muted uppercase tracking-wider mb-2">Total Hints</p>
+                  <p className="text-2xl font-bold text-warning">{stats.totalHints}</p>
+                </div>
               </div>
             </motion.div>
           </>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Crown, Download, FileJson, Medal, Trophy } from 'lucide-react';
+import { ArrowLeft, Crown, Download, FileJson, Medal, Trophy, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/animations/EmptyState';
@@ -9,7 +9,7 @@ import { toast } from '@/components/ui/Toaster';
 import { useApp } from '@/lib/store';
 import { api } from '@/lib/ipc';
 import { formatTime } from '@/lib/utils';
-import type { HighscoreEntry, Puzzle } from '@shared/types';
+import type { HighscoreEntry, Puzzle, PuzzleSummary } from '@shared/types';
 
 function rankIcon(i: number): JSX.Element {
   if (i === 0) return <Crown className="h-4 w-4 text-warning drop-shadow-[0_0_8px_rgba(244,167,44,0.6)]" />;
@@ -25,6 +25,7 @@ export function HighscorePage(): JSX.Element {
 
   const [entries, setEntries] = useState<HighscoreEntry[]>([]);
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
+  const [dailyPuzzle, setDailyPuzzle] = useState<PuzzleSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<'csv' | 'json' | null>(null);
 
@@ -46,19 +47,24 @@ export function HighscorePage(): JSX.Element {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    const today = new Date().toISOString().split('T')[0];
     void Promise.all([
       api().result.highscores({ puzzleId }),
-      puzzleId ? api().puzzle.get({ id: puzzleId }) : Promise.resolve({ puzzle: null })
-    ]).then(([scores, puz]) => {
+      puzzleId ? api().puzzle.get({ id: puzzleId }) : Promise.resolve({ puzzle: null }),
+      api().puzzle.list({ isDaily: true })
+    ]).then(([scores, puz, daily]) => {
       if (cancelled) return;
       setEntries(scores.entries);
       setPuzzle(puz.puzzle);
+      setDailyPuzzle(daily.puzzles.find(p => p.dailyDate === today) || null);
       setLoading(false);
     });
     return () => {
       cancelled = true;
     };
   }, [puzzleId]);
+
+  const isDaily = puzzle?.isDaily || (puzzleId === undefined && false);
 
   return (
     <main className="relative flex-1 overflow-y-auto">
@@ -72,19 +78,24 @@ export function HighscorePage(): JSX.Element {
         </button>
         <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-warning mb-3 inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-warning shadow-[0_0_12px_rgba(244,167,44,0.6)]" />
-              Leaderboard
+            <p className={`text-[10px] uppercase tracking-[0.24em] mb-3 inline-flex items-center gap-2 ${isDaily ? 'text-accent' : 'text-warning'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${isDaily ? 'bg-accent shadow-glow' : 'bg-warning shadow-[0_0_12px_rgba(244,167,44,0.6)]'}`} />
+              {isDaily ? 'Daily Challenge Leaderboard' : 'Leaderboard'}
             </p>
-            <Trophy className="h-12 w-12 text-warning mb-2 drop-shadow-[0_0_24px_rgba(244,167,44,0.4)]" />
+            {isDaily ? <Calendar className="h-12 w-12 text-accent mb-2 drop-shadow-[0_0_24px_rgba(52,211,153,0.4)]" /> : <Trophy className="h-12 w-12 text-warning mb-2 drop-shadow-[0_0_24px_rgba(244,167,44,0.4)]" />}
             <h1 className="text-5xl md:text-6xl font-bold font-display tracking-tight leading-none">
-              <span className="bg-hero-gradient bg-clip-text text-transparent">Highscores</span>
+              <span className="bg-hero-gradient bg-clip-text text-transparent">{isDaily ? 'Daily Global' : 'Highscores'}</span>
             </h1>
             <p className="text-sm text-ink-muted mt-3">
               {puzzle ? <>For <span className="text-ink font-medium">&ldquo;{puzzle.name}&rdquo;</span></> : 'Across every puzzle.'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {!puzzleId && dailyPuzzle && (
+               <Button variant="secondary" onClick={() => setView({ kind: 'highscore', puzzleId: dailyPuzzle.id })}>
+                View Today's Leaderboard
+              </Button>
+            )}
             {puzzleId ? (
               <Button variant="secondary" onClick={() => setView({ kind: 'highscore' })}>
                 Show all puzzles

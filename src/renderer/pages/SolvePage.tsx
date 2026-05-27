@@ -11,7 +11,8 @@ import {
   RotateCcw,
   Sparkles,
   Trophy,
-  Undo2
+  Undo2,
+  Medal
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -178,7 +179,7 @@ export function SolvePage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [puzzleId, user]);
+  }, [puzzleId, user?.id]);
 
   const setValueAt = useCallback(
     (idx: number, next: CellValue, record: boolean) => {
@@ -320,6 +321,14 @@ export function SolvePage(): JSX.Element {
     setSelected(res.cellIndex);
   }, [puzzle, values, selected, finalSeconds, setValueAt]);
 
+  const autoFillPencilMarks = useCallback(async () => {
+    if (!puzzle || finalSeconds !== null) return;
+    const notesArr = await api().solver.autoFillNotes({ cages: puzzle.cages, grid: values });
+    setNotes(notesArr.map(arr => new Set(arr)));
+    setHintsUsed((n) => n + 0.5); // Soft hint, smaller penalty
+    toast.success('Pencil marks auto-filled (0.5 hint penalty)');
+  }, [puzzle, values, finalSeconds]);
+
   const performRestart = useCallback(() => {
     if (!puzzle || finalSeconds !== null) return;
     const reset: GridValues = (puzzle.givens ?? Array(81).fill(null)).slice();
@@ -340,7 +349,7 @@ export function SolvePage(): JSX.Element {
       void api().settings.set({ key: progressKey(user.id, puzzle.id), value: '' });
     }
     toast.message('Puzzle restarted');
-  }, [puzzle, finalSeconds, user]);
+  }, [puzzle, finalSeconds, user?.id]);
 
   const performForfeit = useCallback(async () => {
     if (!puzzle || finalSeconds !== null || completed.current) return;
@@ -362,7 +371,7 @@ export function SolvePage(): JSX.Element {
     setCompleteOpen(true);
     playSound.forfeit();
     toast.message('Forfeited — no highscore saved');
-  }, [puzzle, finalSeconds, startedAt, user]);
+  }, [puzzle, finalSeconds, startedAt, user?.id]);
 
   useEffect(() => {
     if (!puzzle || finalSeconds !== null) return;
@@ -385,6 +394,12 @@ export function SolvePage(): JSX.Element {
           });
           setScore(saveRes.score);
           void api().settings.set({ key: progressKey(user.id, puzzle.id), value: '' });
+
+          // Refresh user data (XP/Level) after solve
+          const refreshRes = await api().auth.refresh({ userId: user.id });
+          if (refreshRes.success && refreshRes.user) {
+            useApp.getState().setUser(refreshRes.user);
+          }
         } else {
           const base = puzzle.difficulty === 1 ? 4000 : puzzle.difficulty === 3 ? 14000 : 8000;
           const par = puzzle.difficulty === 1 ? 360 : puzzle.difficulty === 3 ? 1500 : 720;
@@ -397,7 +412,7 @@ export function SolvePage(): JSX.Element {
       }
     }, 120);
     return () => clearTimeout(id);
-  }, [values, puzzle, finalSeconds, hintsUsed, startedAt, user]);
+  }, [values, puzzle, finalSeconds, hintsUsed, startedAt, user?.id]);
 
   useEffect(() => {
     if (!user || !puzzle || !initialized.current || finalSeconds !== null) return;
@@ -415,7 +430,7 @@ export function SolvePage(): JSX.Element {
       });
     }, 800);
     return () => clearTimeout(handle);
-  }, [values, notes, hintsUsed, user, puzzle, startedAt, finalSeconds]);
+  }, [values, notes, hintsUsed, user?.id, puzzle, startedAt, finalSeconds]);
 
   useEffect(() => {
     const onHint = (): void => void takeHint();
@@ -673,6 +688,10 @@ export function SolvePage(): JSX.Element {
                 <Lightbulb className="h-4 w-4" />
                 Hint
               </Button>
+              <Button variant="secondary" size="sm" onClick={() => void autoFillPencilMarks()}>
+                <Sparkles className="h-4 w-4" />
+                Auto-notes
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"
@@ -820,6 +839,23 @@ export function SolvePage(): JSX.Element {
               <div className="surface p-3 text-center">
                 <p className="text-ink-muted text-[10px] uppercase tracking-wider font-display mb-1">Time</p>
                 <p className="text-ink font-mono">{formatTime(finalSeconds ?? 0)}</p>
+                {puzzle && finalSeconds !== null && (
+                  <div className="mt-1 flex justify-center gap-1">
+                    {finalSeconds <= puzzle.parTimes.gold ? (
+                      <div className="flex items-center gap-0.5 text-warning font-bold text-[10px]">
+                        <Medal className="h-3 w-3" /> GOLD
+                      </div>
+                    ) : finalSeconds <= puzzle.parTimes.silver ? (
+                      <div className="flex items-center gap-0.5 text-ink-muted font-bold text-[10px]">
+                        <Medal className="h-3 w-3" /> SILVER
+                      </div>
+                    ) : finalSeconds <= puzzle.parTimes.bronze ? (
+                      <div className="flex items-center gap-0.5 text-amber-700 font-bold text-[10px]">
+                        <Medal className="h-3 w-3" /> BRONZE
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
               <div className="surface p-3 text-center">
                 <p className="text-ink-muted text-[10px] uppercase tracking-wider font-display mb-1">Hints</p>
@@ -844,6 +880,9 @@ export function SolvePage(): JSX.Element {
                 onClick={() => setView({ kind: 'highscore', puzzleId: puzzle.id })}
               >
                 Highscores
+              </Button>
+              <Button variant="secondary" onClick={() => setView({ kind: 'list' })}>
+                Next puzzle
               </Button>
               <Button onClick={() => setView({ kind: 'list' })}>Back to puzzles</Button>
             </div>

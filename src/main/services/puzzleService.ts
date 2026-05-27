@@ -5,6 +5,7 @@ import {
   listPuzzles
 } from '@main/db/queries';
 import { cagesCoverGridOnce, solve, validatePuzzle } from './solverService';
+import { getParTimeBadges } from './solverService';
 import type {
   CageInput,
   CreateResult,
@@ -12,6 +13,7 @@ import type {
   Difficulty,
   GetResult,
   ListResult,
+  ParTimeBadges,
   Puzzle,
   ValidateResult
 } from '@shared/types';
@@ -50,7 +52,7 @@ function pickGivens(
   return Array.from({ length: 81 }, (_, i) => (chosen.has(i) ? solution[i] : null));
 }
 
-function attachGivens(puzzle: Puzzle): Puzzle {
+function attachGivens(puzzle: Omit<Puzzle, 'parTimes'>): Omit<Puzzle, 'parTimes'> {
   const count = GIVENS_PER_DIFFICULTY[puzzle.difficulty] ?? 0;
   if (count === 0) {
     return { ...puzzle, givens: Array(81).fill(null) };
@@ -94,6 +96,8 @@ export function create(input: {
   difficulty: Difficulty;
   cages: CageInput[];
   createdBy: number;
+  isDaily?: boolean;
+  dailyDate?: string;
 }): CreateResult {
   const name = (input.name ?? '').trim();
   if (name.length < 2 || name.length > 100) {
@@ -108,12 +112,19 @@ export function create(input: {
   if (!v.sumValid) return { success: false, error: 'Cage sums must total 405' };
   if (!v.solvable) return { success: false, error: 'Puzzle has no solution' };
   if (!v.unique) return { success: false, error: 'Puzzle is not uniquely solvable' };
-  const puzzleId = insertPuzzle(name, input.difficulty, input.cages, input.createdBy);
+  const puzzleId = insertPuzzle(
+    name,
+    input.difficulty,
+    input.cages,
+    input.createdBy,
+    input.isDaily,
+    input.dailyDate
+  );
   return { success: true, puzzleId };
 }
 
-export function list(difficulty?: Difficulty): ListResult {
-  const puzzles = listPuzzles(difficulty);
+export function list(difficulty?: Difficulty, isDaily?: boolean): ListResult {
+  const puzzles = listPuzzles(difficulty, isDaily);
   return { puzzles };
 }
 
@@ -121,7 +132,9 @@ export function get(id: number): GetResult {
   if (!Number.isInteger(id) || id <= 0) return { puzzle: null };
   const base = getPuzzle(id);
   if (!base) return { puzzle: null };
-  return { puzzle: attachGivens(base as Puzzle) };
+  const withGivens = attachGivens(base);
+  const p: Puzzle = { ...withGivens, parTimes: getParTimeBadges(withGivens.difficulty) };
+  return { puzzle: p };
 }
 
 export function remove(puzzleId: number, userId: number): DeleteResult {

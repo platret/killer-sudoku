@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Cell } from './Cell';
 import { CageLayer } from './CageLayer';
 import type { Cage, CageInput, Grid as GridValues } from '@shared/types';
@@ -53,9 +53,20 @@ export function Grid({
 }: Props): JSX.Element {
   const peers = useMemo(() => (selected === null ? new Set<number>() : peersOf(selected)), [selected]);
   const selectedValue = selected !== null ? values[selected] : null;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selected !== null && scrollRef.current) {
+      const cell = scrollRef.current.querySelector(`[data-index="${selected}"]`);
+      if (cell) {
+        cell.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    }
+  }, [selected]);
 
   return (
     <div
+      ref={scrollRef}
       role="grid"
       aria-label="Sudoku grid"
       className="relative bg-bg-base border-2 border-line-strong/20 shadow-elev"

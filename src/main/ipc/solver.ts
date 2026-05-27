@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { checkGrid, hint, solve } from '../services/solverService';
+import { autoFillNotes, checkGrid, hint, solve } from '../services/solverService';
 import type { CageInput, CheckResult, Grid, HintResult, SolveSolverResult } from '@shared/types';
 
 export function registerSolverIpc(): void {
@@ -35,6 +35,17 @@ export function registerSolverIpc(): void {
         return checkGrid(input.cages, input.grid);
       } catch {
         return { complete: false, sumValid: false, correct: false, errorCells: [] };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'solver:autoFillNotes',
+    async (_e, input: { cages: CageInput[]; grid: Grid }): Promise<number[][]> => {
+      try {
+        return autoFillNotes(input.cages, input.grid);
+      } catch {
+        return Array(81).fill([]);
       }
     }
   );

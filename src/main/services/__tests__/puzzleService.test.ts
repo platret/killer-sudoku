@@ -30,11 +30,12 @@ const mocks = vi.hoisted(() => {
       difficulty: p.difficulty,
       createdBy: p.createdBy,
       createdByName: 'tester',
+      isDaily: false,
       createdAt: '2026-01-01T00:00:00Z'
     }));
   });
 
-  const getPuzzle = vi.fn((id: number): Puzzle | null => {
+  const getPuzzle = vi.fn((id: number): Omit<Puzzle, 'parTimes'> | null => {
     const p = state.puzzles.find((x) => x.id === id);
     if (!p) return null;
     return {
@@ -43,6 +44,7 @@ const mocks = vi.hoisted(() => {
       difficulty: p.difficulty,
       createdBy: p.createdBy,
       createdByName: 'tester',
+      isDaily: false,
       createdAt: '2026-01-01T00:00:00Z',
       cages: p.cages.map((c, i) => ({ id: i + 1, targetSum: c.targetSum, cells: c.cells })),
       givens: Array(81).fill(null)

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Check, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Plus, Save, Trash2, Undo2, Redo2, Wand2, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
@@ -10,7 +10,7 @@ import { HomeBackdrop } from '@/components/animations/HomeBackdrop';
 import { toast } from '@/components/ui/Toaster';
 import { useApp } from '@/lib/store';
 import { api } from '@/lib/ipc';
-import { cn } from '@/lib/utils';
+import { cn, difficultyLabel } from '@/lib/utils';
 import type { CageInput, Difficulty } from '@shared/types';
 
 const CELL = 48;
@@ -24,18 +24,80 @@ export function CreatePage(): JSX.Element {
   const user = useApp((s) => s.user);
 
   const [name, setName] = useState('');
+  const [nameSuggested, setNameSuggested] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>(1);
   const [cages, setCages] = useState<CageInput[]>([]);
+  const [history, setHistory] = useState<CageInput[][]>([]);
+  const [redoStack, setRedoStack] = useState<CageInput[][]>([]);
   const [draft, setDraft] = useState<Set<number>>(new Set());
+  const [isDragging, setIsDragging] = useState(false);
   const [draftSum, setDraftSum] = useState('');
   const [validating, setValidating] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const pushToHistory = useCallback((nextCages: CageInput[]) => {
+    setHistory((prev) => [...prev, cages]);
+    setCages(nextCages);
+    setRedoStack([]);
+  }, [cages]);
+
+  const undo = () => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setRedoStack((r) => [...r, cages]);
+    setHistory((h) => h.slice(0, -1));
+    setCages(prev);
+  };
+
+  const redo = () => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setHistory((h) => [...h, cages]);
+    setRedoStack((r) => r.slice(0, -1));
+    setCages(next);
+  };
+
+  const onCellEnter = (idx: number): void => {
+    if (!isDragging || cageOfCell[idx] !== -1) return;
+    setDraft((prev) => {
+      const next = new Set(prev);
+      next.add(idx);
+      return next;
+    });
+  };
+
+  const autoBalance = async () => {
+    const res = await api().puzzle.generate({ difficulty });
+    if (res.success && res.cages) {
+      pushToHistory(res.cages);
+      toast.success('Generated a balanced layout');
+      // Suggest a name if empty
+      if (name.trim() === '') {
+        const diff = difficultyLabel(difficulty);
+        const count = Math.floor(Math.random() * 100);
+        setName(`${diff} Spiral #${count}`);
+      }
+    } else {
+      toast.error('Could not generate layout');
+    }
+  };
 
   const cageOfCell = useMemo(() => {
     const map = new Array<number>(81).fill(-1);
     cages.forEach((c, i) => c.cells.forEach((idx) => { map[idx] = i; }));
     return map;
   }, [cages]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z') { e.preventDefault(); undo(); }
+        if (e.key === 'y') { e.preventDefault(); redo(); }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [history, redoStack, cages]);
 
   const remainingCells = 81 - cages.reduce((acc, c) => acc + c.cells.length, 0);
   const totalSum = cages.reduce((acc, c) => acc + c.targetSum, 0);
@@ -64,13 +126,13 @@ export function CreatePage(): JSX.Element {
       toast.error('Target sum must be 1–45');
       return;
     }
-    setCages((prev) => [...prev, { targetSum: target, cells: Array.from(draft).sort((a, b) => a - b) }]);
+    pushToHistory([...cages, { targetSum: target, cells: Array.from(draft).sort((a, b) => a - b) }]);
     setDraft(new Set());
     setDraftSum('');
   };
 
   const removeCage = (i: number): void => {
-    setCages((prev) => prev.filter((_, idx) => idx !== i));
+    pushToHistory(cages.filter((_, idx) => idx !== i));
   };
 
   const clearDraft = (): void => {
@@ -84,7 +146,7 @@ export function CreatePage(): JSX.Element {
     const singletons: CageInput[] = [];
     for (let i = 0; i < 81; i++) if (!taken.has(i)) singletons.push({ targetSum: 1, cells: [i] });
     if (singletons.length === 0) return;
-    setCages((prev) => [...prev, ...singletons]);
+    pushToHistory([...cages, ...singletons]);
   };
 
   const validate = async (): Promise<void> => {
@@ -146,6 +208,41 @@ export function CreatePage(): JSX.Element {
     }
   };
 
+  const exportJson = async () => {
+    const data = JSON.stringify({ name, difficulty, cages: cages.map(c => ({ targetSum: c.targetSum, cells: c.cells })) }, null, 2);
+    const res = await api().file.save({
+      dataBase64: btoa(data),
+      defaultName: `${name || 'puzzle'}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    });
+    if (res.success) toast.success('Exported JSON');
+  };
+
+  const importJson = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      try {
+        const data = JSON.parse(text);
+        if (data.cages && Array.isArray(data.cages)) {
+          pushToHistory(data.cages);
+          if (data.name) setName(data.name);
+          if (data.difficulty) setDifficulty(data.difficulty);
+          toast.success('Imported puzzle');
+        } else {
+          toast.error('Invalid puzzle format');
+        }
+      } catch {
+        toast.error('Invalid JSON');
+      }
+    };
+    input.click();
+  };
+
   return (
     <main className="relative flex-1 overflow-y-auto">
       <HomeBackdrop intensity={0.4} />
@@ -177,6 +274,9 @@ export function CreatePage(): JSX.Element {
         <div
           className="relative shrink-0"
           style={{ width: CELL * 9, height: CELL * 9 }}
+          onMouseDown={() => setIsDragging(true)}
+          onMouseUp={() => setIsDragging(false)}
+          onMouseLeave={() => setIsDragging(false)}
         >
           <div
             className="absolute inset-0 grid bg-bg-base border-2 border-line-strong/20"
@@ -194,6 +294,7 @@ export function CreatePage(): JSX.Element {
                 <button
                    key={i}
                    onClick={() => onCellClick(i)}
+                   onMouseEnter={() => onCellEnter(i)}
                    className={cn(
                      'relative flex items-center justify-center text-[10px] font-mono text-ink-dim',
                      'transition-colors',
@@ -224,7 +325,17 @@ export function CreatePage(): JSX.Element {
         <aside className="flex flex-col gap-4 min-w-[320px] flex-1">
           <div className="surface p-4 space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="name">Name</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="name">Name</Label>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => void exportJson()} title="Export JSON">
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={importJson} title="Import JSON">
+                    <Upload className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
               <Input
                 id="name"
                 value={name}
@@ -270,9 +381,22 @@ export function CreatePage(): JSX.Element {
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
-            <Button variant="secondary" size="sm" onClick={fillSingletons} className="w-full">
-              Fill remaining as singletons
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" size="sm" onClick={undo} disabled={history.length === 0}>
+                <Undo2 className="h-4 w-4" /> Undo
+              </Button>
+              <Button variant="secondary" size="sm" onClick={redo} disabled={redoStack.length === 0}>
+                <Redo2 className="h-4 w-4" /> Redo
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" size="sm" onClick={fillSingletons} className="flex-1">
+                Singletons
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => void autoBalance()} className="flex-1">
+                <Wand2 className="h-4 w-4" /> Auto-layout
+              </Button>
+            </div>
           </div>
 
           <div className="surface p-4 max-h-64 overflow-y-auto">

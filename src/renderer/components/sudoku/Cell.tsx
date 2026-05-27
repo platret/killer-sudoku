@@ -48,6 +48,7 @@ export function Cell({
   return (
     <button
       key={error ? `err-${errorVersion}` : 'ok'}
+      data-index={index}
       role="gridcell"
       aria-label={`Cell row ${Math.floor(index / 9) + 1} column ${(index % 9) + 1}`}
       aria-selected={selected}

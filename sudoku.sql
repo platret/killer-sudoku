@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  xp INTEGER NOT NULL DEFAULT 0,
+  level INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -14,6 +16,8 @@ CREATE TABLE IF NOT EXISTS puzzles (
   name TEXT NOT NULL,
   difficulty INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 3),
   created_by INTEGER NOT NULL,
+  is_daily BOOLEAN NOT NULL DEFAULT 0,
+  daily_date TEXT, -- YYYY-MM-DD
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -39,9 +43,27 @@ CREATE TABLE IF NOT EXISTS results (
   time_seconds INTEGER NOT NULL,
   hints_used INTEGER NOT NULL,
   score INTEGER NOT NULL,
+  streak_multiplier REAL NOT NULL DEFAULT 1.0,
+  xp_gained INTEGER NOT NULL DEFAULT 0,
   completed_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (puzzle_id) REFERENCES puzzles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS cosmetics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL, -- 'cell_theme', 'animation'
+  key TEXT NOT NULL UNIQUE,
+  unlock_level INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS user_cosmetics (
+  user_id INTEGER NOT NULL,
+  cosmetic_id INTEGER NOT NULL,
+  PRIMARY KEY (user_id, cosmetic_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (cosmetic_id) REFERENCES cosmetics(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (

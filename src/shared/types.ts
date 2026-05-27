@@ -5,6 +5,8 @@ export type Grid = Cell[];
 export interface User {
   id: number;
   username: string;
+  xp: number;
+  level: number;
   createdAt: string;
 }
 
@@ -23,12 +25,15 @@ export interface PuzzleSummary {
   difficulty: Difficulty;
   createdBy: number;
   createdByName: string;
+  isDaily: boolean;
+  dailyDate?: string;
   createdAt: string;
 }
 
 export interface Puzzle extends PuzzleSummary {
   cages: Cage[];
   givens: (number | null)[];
+  parTimes: ParTimeBadges;
 }
 
 export interface CheckResult {
@@ -45,7 +50,15 @@ export interface SolveResult {
   timeSeconds: number;
   hintsUsed: number;
   score: number;
+  streakMultiplier: number;
+  xpGained: number;
   completedAt: string;
+}
+
+export interface ParTimeBadges {
+  gold: number;
+  silver: number;
+  bronze: number;
 }
 
 export interface HighscoreEntry {
@@ -191,6 +204,7 @@ export interface ElectronAPI {
   auth: {
     register: (input: { username: string; password: string }) => Promise<AuthResult>;
     login: (input: { username: string; password: string }) => Promise<AuthResult>;
+    refresh: (input: { userId: number }) => Promise<AuthResult>;
     logout: () => Promise<{ success: boolean }>;
   };
   puzzle: {
@@ -201,10 +215,12 @@ export interface ElectronAPI {
       cages: CageInput[];
       createdBy: number;
     }) => Promise<CreateResult>;
-    list: (input?: { difficulty?: Difficulty }) => Promise<ListResult>;
+    list: (input?: { difficulty?: Difficulty; isDaily?: boolean }) => Promise<ListResult>;
     get: (input: { id: number }) => Promise<GetResult>;
     delete: (input: { puzzleId: number; userId: number }) => Promise<DeleteResult>;
     generate: (input: { difficulty: Difficulty }) => Promise<GenerateResult>;
+    import: (input: { json: string; userId: number }) => Promise<CreateResult>;
+    export: (input: { id: number }) => Promise<{ json: string | null }>;
   };
   solver: {
     solve: (input: { cages: CageInput[]; givens?: Grid }) => Promise<SolveSolverResult>;
@@ -214,6 +230,7 @@ export interface ElectronAPI {
       selectedIndex?: number;
     }) => Promise<HintResult>;
     check: (input: { cages: CageInput[]; grid: Grid }) => Promise<CheckResult>;
+    autoFillNotes: (input: { cages: CageInput[]; grid: Grid }) => Promise<number[][]>;
   };
   result: {
     save: (input: {
