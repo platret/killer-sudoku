@@ -29,6 +29,15 @@ export function registerAuthIpc(): void {
     }
   });
 
+  ipcMain.handle('auth:refresh', async (_e, input: { userId: number }): Promise<AuthResult> => {
+    try {
+      const res = await authService.refresh(input.userId);
+      return res;
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Refresh failed' };
+    }
+  });
+
   ipcMain.handle('auth:logout', async (): Promise<{ success: boolean }> => {
     currentUserId = null;
     return { success: true };

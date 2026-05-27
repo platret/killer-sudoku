@@ -5,6 +5,7 @@ const api: ElectronAPI = {
   auth: {
     register: (input) => ipcRenderer.invoke('auth:register', input),
     login: (input) => ipcRenderer.invoke('auth:login', input),
+    refresh: (input) => ipcRenderer.invoke('auth:refresh', input),
     logout: () => ipcRenderer.invoke('auth:logout')
   },
   puzzle: {
@@ -13,12 +14,15 @@ const api: ElectronAPI = {
     list: (input) => ipcRenderer.invoke('puzzle:list', input ?? {}),
     get: (input) => ipcRenderer.invoke('puzzle:get', input),
     delete: (input) => ipcRenderer.invoke('puzzle:delete', input),
-    generate: (input) => ipcRenderer.invoke('puzzle:generate', input)
+    generate: (input) => ipcRenderer.invoke('puzzle:generate', input),
+    import: (input) => ipcRenderer.invoke('puzzle:import', input),
+    export: (input) => ipcRenderer.invoke('puzzle:export', input)
   },
   solver: {
     solve: (input) => ipcRenderer.invoke('solver:solve', input),
     hint: (input) => ipcRenderer.invoke('solver:hint', input),
-    check: (input) => ipcRenderer.invoke('solver:check', input)
+    check: (input) => ipcRenderer.invoke('solver:check', input),
+    autoFillNotes: (input) => ipcRenderer.invoke('solver:autoFillNotes', input)
   },
   result: {
     save: (input) => ipcRenderer.invoke('result:save', input),

@@ -73,6 +73,7 @@ export function PuzzleListPage(): JSX.Element {
   const defaultDifficulty = useApp((s) => s.defaultDifficulty);
 
   const [puzzles, setPuzzles] = useState<PuzzleSummary[]>([]);
+  const [dailyPuzzle, setDailyPuzzle] = useState<PuzzleSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | Difficulty>('all');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
@@ -124,8 +125,13 @@ export function PuzzleListPage(): JSX.Element {
   const load = async (): Promise<void> => {
     setLoading(true);
     try {
-      const res = await api().puzzle.list(filter === 'all' ? undefined : { difficulty: filter });
+      const [res, daily] = await Promise.all([
+        api().puzzle.list(filter === 'all' ? undefined : { difficulty: filter }),
+        api().puzzle.list({ isDaily: true })
+      ]);
       setPuzzles(res.puzzles);
+      const today = new Date().toISOString().split('T')[0];
+      setDailyPuzzle(daily.puzzles.find((p) => p.dailyDate === today) || null);
     } finally {
       setLoading(false);
     }
@@ -343,6 +349,39 @@ export function PuzzleListPage(): JSX.Element {
         {/* Streak / daily widget */}
         {streak ? <StreakStrip info={streak} /> : null}
 
+        {dailyPuzzle && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
+              <CalendarCheck2 className="h-5 w-5 text-accent" />
+              Daily Challenge
+            </h2>
+            <div
+              onClick={() => setView({ kind: 'solve', puzzleId: dailyPuzzle.id })}
+              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-accent/30 bg-accent/[0.03] p-6 transition-all hover:border-accent/50 hover:bg-accent/[0.06]"
+            >
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-ink group-hover:text-accent transition-colors">
+                    {dailyPuzzle.name}
+                  </h3>
+                  <p className="text-sm text-ink-muted mt-1">
+                    Solve today's seeded puzzle and climb the global leaderboard.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="px-3 py-1 rounded-full border border-warning/40 text-warning bg-warning/10 text-xs font-bold uppercase tracking-wider">
+                    Medium
+                  </div>
+                  <Button className="shadow-glow">
+                    <Play className="h-4 w-4 fill-current" />
+                    Solve now
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search & sort row */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <div className="relative flex-1 min-w-[220px] max-w-md">
@@ -527,6 +566,12 @@ export function PuzzleListPage(): JSX.Element {
 function StreakStrip({ info }: { info: StreakInfo }): JSX.Element {
   const noActivity =
     info.solvedToday === 0 && info.currentStreak === 0 && info.longestStreak === 0;
+
+  let multiplier = 1.0;
+  if (info.currentStreak >= 30) multiplier = 2.0;
+  else if (info.currentStreak >= 7) multiplier = 1.5;
+  else if (info.currentStreak >= 3) multiplier = 1.25;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -4 }}
@@ -545,9 +590,16 @@ function StreakStrip({ info }: { info: StreakInfo }): JSX.Element {
         <Flame className="h-5 w-5 text-magenta-glow shrink-0" />
         <div>
           <p className="text-[10px] uppercase tracking-wider text-ink-muted">Current streak</p>
-          <p className="text-xl font-mono tabular-num text-ink leading-tight">
-            {info.currentStreak} day{info.currentStreak === 1 ? '' : 's'}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xl font-mono tabular-num text-ink leading-tight">
+              {info.currentStreak} day{info.currentStreak === 1 ? '' : 's'}
+            </p>
+            {multiplier > 1 && (
+              <span className="text-[10px] font-bold bg-magenta-glow text-bg px-1.5 py-0.5 rounded">
+                x{multiplier}
+              </span>
+            )}
+          </div>
         </div>
       </div>
       <div className="rounded-lg border border-cyan-glow/30 bg-cyan-glow/[0.06] backdrop-blur-md px-4 py-3 flex items-center gap-3">
@@ -560,7 +612,12 @@ function StreakStrip({ info }: { info: StreakInfo }): JSX.Element {
         </div>
       </div>
       <div className="rounded-lg border border-line/60 bg-bg-panel/55 backdrop-blur-md px-4 py-3 flex items-center gap-3">
-        <Dices className="h-5 w-5 text-ink-muted shrink-0" />
+        <div className="relative">
+          <Dices className="h-5 w-5 text-ink-muted shrink-0" />
+          {multiplier > 1 && (
+            <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-magenta-glow animate-pulse" />
+          )}
+        </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-ink-muted">
             {noActivity ? 'Get started' : 'Keep going'}

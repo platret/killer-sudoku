@@ -20,7 +20,10 @@ const mocks = vi.hoisted(() => {
     }
   );
 
-  const one = vi.fn(() => ({ difficulty: state.difficulty }));
+  const one = vi.fn((sql: string) => {
+    if (sql.includes('FROM users')) return { xp: 0, level: 1 };
+    return { difficulty: state.difficulty };
+  });
   const many = vi.fn(() => []);
 
   const listHighscores = vi.fn((puzzleId?: number): HighscoreEntry[] => {
@@ -50,7 +53,8 @@ vi.mock('@main/db/queries', () => ({
   listHighscores: mocks.listHighscores,
   getBestForUserPuzzle: vi.fn(() => null),
   getCompletionDays: vi.fn(() => []),
-  getResultHistory: vi.fn(() => [])
+  getResultHistory: vi.fn(() => []),
+  updateUserXp: vi.fn()
 }));
 
 vi.mock('@main/db/index', () => ({

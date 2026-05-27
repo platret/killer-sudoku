@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { findUserByUsername, insertUser } from '@main/db/queries';
+import { findUserByUsername, insertUser, findUserById } from '@main/db/queries';
 import type { AuthResult } from '@shared/types';
 
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,20}$/;
@@ -38,7 +38,15 @@ export async function login(username: string, password: string): Promise<AuthRes
   }
   const found = findUserByUsername(u);
   if (!found) return { success: false, error: 'Invalid credentials' };
+
   const ok = await bcrypt.compare(password, found.hash);
   if (!ok) return { success: false, error: 'Invalid credentials' };
+
   return { success: true, user: found.user };
+}
+
+export async function refresh(userId: number): Promise<AuthResult> {
+  const user = findUserById(userId);
+  if (!user) return { success: false, error: 'User not found' };
+  return { success: true, user };
 }

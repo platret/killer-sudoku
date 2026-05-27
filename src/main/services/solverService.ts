@@ -1,4 +1,4 @@
-import type { CageInput, CheckResult, Difficulty, Grid } from '@shared/types';
+import type { CageInput, CheckResult, Difficulty, Grid, ParTimeBadges } from '@shared/types';
 
 export const GRID_SIZE = 81;
 export const ROW = (i: number): number => Math.floor(i / 9);
@@ -296,7 +296,10 @@ export function hint(
     target = selectedIndex;
   } else {
     for (let i = 0; i < 81; i++) {
-      if (grid[i] === null || grid[i] === undefined) { target = i; break; }
+      if (grid[i] === null || grid[i] === undefined) {
+        target = i;
+        break;
+      }
     }
   }
   if (target === -1) return { error: 'No empty cells' };
@@ -305,6 +308,41 @@ export function hint(
   const solution = solve(cages, givens);
   if (!solution) return { error: 'Current state is unsolvable' };
   return { cellIndex: target, value: solution[target] };
+}
+
+export function autoFillNotes(cages: CageInput[], grid: Grid): number[][] {
+  const sol = solve(cages, grid);
+  if (!sol) return Array(81).fill([]);
+
+  const out = Array(81)
+    .fill(null)
+    .map(() => [] as number[]);
+  for (let i = 0; i < 81; i++) {
+    if (grid[i] !== null && grid[i] !== undefined) continue;
+    const state = buildState(cages, grid);
+    if (state) {
+      out[i] = candidatesFor(state, i);
+    }
+  }
+  return out;
+}
+
+/**
+ * Par times in seconds for each difficulty.
+ */
+export const PAR_TIMES: Record<Difficulty, number> = {
+  1: 360, // 6 minutes
+  2: 720, // 12 minutes
+  3: 1500 // 25 minutes
+};
+
+export function getParTimeBadges(difficulty: Difficulty): ParTimeBadges {
+  const par = PAR_TIMES[difficulty];
+  return {
+    gold: Math.floor(par * 0.75),
+    silver: par,
+    bronze: Math.floor(par * 1.5)
+  };
 }
 
 /**
@@ -321,10 +359,10 @@ export function scoreOf(
   difficulty: Difficulty = 2
 ): number {
   const BASE: Record<Difficulty, number> = { 1: 4000, 2: 8000, 3: 14000 };
-  const PAR_SECONDS: Record<Difficulty, number> = { 1: 360, 2: 720, 3: 1500 };
   const t = Math.max(0, timeSeconds);
   const h = Math.max(0, hintsUsed);
-  const timeMul = Math.max(0.2, 1 - t / (PAR_SECONDS[difficulty] * 2));
+  const par = PAR_TIMES[difficulty] || 720;
+  const timeMul = Math.max(0.2, 1 - t / (par * 2));
   const hintMul = Math.max(0.05, 1 - h * 0.05);
   return Math.round(BASE[difficulty] * timeMul * hintMul);
 }

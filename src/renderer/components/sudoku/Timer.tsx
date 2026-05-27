@@ -11,12 +11,24 @@ interface Props {
 
 export function Timer({ startedAt, paused, finalSeconds }: Props): JSX.Element {
   const [now, setNow] = useState(Date.now());
+  const [windowFocused, setWindowFocused] = useState(true);
 
   useEffect(() => {
-    if (paused || startedAt === null || finalSeconds !== null) return;
+    const onBlur = () => setWindowFocused(false);
+    const onFocus = () => setWindowFocused(true);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (paused || startedAt === null || finalSeconds !== null || !windowFocused) return;
     const id = window.setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
-  }, [paused, startedAt, finalSeconds]);
+  }, [paused, startedAt, finalSeconds, windowFocused]);
 
   const seconds = finalSeconds ?? (startedAt === null ? 0 : Math.floor((now - startedAt) / 1000));
 

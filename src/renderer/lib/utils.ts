@@ -12,8 +12,9 @@ export function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
 }
 
-export function difficultyLabel(d: 1 | 2 | 3): string {
+export function difficultyLabel(d: 1 | 2 | 3 | number): string {
   if (d === 1) return 'Easy';
   if (d === 2) return 'Medium';
-  return 'Hard';
+  if (d === 3) return 'Hard';
+  return 'Unknown';
 }

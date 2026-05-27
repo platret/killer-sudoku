@@ -4,7 +4,8 @@ import {
   getCompletionDays,
   getResultHistory,
   insertResult,
-  listHighscores
+  listHighscores,
+  updateUserXp
 } from '@main/db/queries';
 import { scoreOf } from './solverService';
 import type {
@@ -29,9 +30,29 @@ export function save(input: {
     [input.puzzleId]
   );
   const difficulty = (row?.difficulty === 1 || row?.difficulty === 3 ? row.difficulty : 2) as Difficulty;
-  const score = scoreOf(t, h, difficulty);
-  insertResult(input.userId, input.puzzleId, t, h, score);
-  return { success: true, score };
+  const baseScore = scoreOf(t, h, difficulty);
+
+  // Calculate streak multiplier
+  const s = streak(input.userId);
+  let multiplier = 1.0;
+  if (s.currentStreak >= 30) multiplier = 2.0;
+  else if (s.currentStreak >= 7) multiplier = 1.5;
+  else if (s.currentStreak >= 3) multiplier = 1.25;
+
+  const finalScore = Math.floor(baseScore * multiplier);
+  const xpGained = Math.floor(finalScore / 10);
+
+  insertResult(input.userId, input.puzzleId, t, h, finalScore, multiplier, xpGained);
+
+  // Update user XP and level
+  const user = one<{ xp: number; level: number }>('SELECT xp, level FROM users WHERE id = ?', [input.userId]);
+  if (user) {
+    const totalXp = user.xp + xpGained;
+    const newLevel = Math.floor(Math.sqrt(totalXp / 100)) + 1;
+    updateUserXp(input.userId, xpGained, newLevel);
+  }
+
+  return { success: true, score: finalScore };
 }
 
 export function highscores(puzzleId?: number): HighscoreList {

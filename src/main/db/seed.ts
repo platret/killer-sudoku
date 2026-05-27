@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { many, one, run } from './index';
 import { generateUniquePuzzle } from '../services/generatorService';
 import type { CageInput, Difficulty } from '@shared/types';
+import { insertPuzzle } from './queries';
 
 interface IdRow { id: number }
 interface CountRow { n: number }
@@ -24,33 +25,6 @@ function ensureDemoUser(): number {
   return Number(res.lastInsertRowid);
 }
 
-function insertSeedPuzzle(
-  userId: number,
-  name: string,
-  difficulty: Difficulty,
-  cages: CageInput[]
-): number {
-  const puzId = Number(
-    run('INSERT INTO puzzles (name, difficulty, created_by) VALUES (?, ?, ?)', [
-      name,
-      difficulty,
-      userId
-    ]).lastInsertRowid
-  );
-  for (const cage of cages) {
-    const cageId = Number(
-      run('INSERT INTO cages (puzzle_id, target_sum) VALUES (?, ?)', [
-        puzId,
-        cage.targetSum
-      ]).lastInsertRowid
-    );
-    for (const cell of cage.cells) {
-      run('INSERT INTO cage_cells (cage_id, cell_index) VALUES (?, ?)', [cageId, cell]);
-    }
-  }
-  return puzId;
-}
-
 export async function runSeed(): Promise<void> {
   const userId = ensureDemoUser();
   console.log(`[seed] demo user id=${userId}`);
@@ -71,8 +45,28 @@ export async function runSeed(): Promise<void> {
       console.log('FAILED');
       continue;
     }
-    const id = insertSeedPuzzle(userId, spec.name, spec.difficulty, cages);
+    const id = insertPuzzle(spec.name, spec.difficulty, cages, userId);
     console.log(`ok #${id} cages=${cages.length} (${Date.now() - t0}ms)`);
+  }
+
+  // Ensure Daily Puzzles
+  const today = new Date().toISOString().split('T')[0];
+  const dailyExists = one<CountRow>(
+    'SELECT COUNT(*) AS n FROM puzzles WHERE is_daily = 1 AND daily_date = ?',
+    [today]
+  );
+
+  if ((dailyExists?.n ?? 0) === 0) {
+    process.stdout.write(`[seed] generating daily puzzle for ${today}… `);
+    const t0 = Date.now();
+    // Daily puzzles are always difficulty 2 (Medium) for balance
+    const cages = generateUniquePuzzle(2);
+    if (cages) {
+      const id = insertPuzzle(`Daily Puzzle ${today}`, 2, cages, userId, true, today);
+      console.log(`ok #${id} (${Date.now() - t0}ms)`);
+    } else {
+      console.log('FAILED');
+    }
   }
 
   const summary = many<SummaryRow>(
@@ -80,8 +74,8 @@ export async function runSeed(): Promise<void> {
             (SELECT COUNT(*) FROM cages WHERE puzzle_id = p.id) AS cage_count,
             (SELECT COUNT(*) FROM cage_cells cc JOIN cages c ON c.id = cc.cage_id WHERE c.puzzle_id = p.id) AS cell_count
      FROM puzzles p
-     WHERE p.name LIKE 'Seed:%'
-     ORDER BY p.difficulty ASC, p.id ASC`
+     WHERE p.name LIKE 'Seed:%' OR p.is_daily = 1
+     ORDER BY p.is_daily DESC, p.difficulty ASC, p.id ASC`
   );
   console.log('[seed] summary:');
   for (const row of summary) {

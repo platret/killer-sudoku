@@ -12,6 +12,8 @@ interface UserRow {
   id: number;
   username: string;
   password_hash: string;
+  xp: number;
+  level: number;
   created_at: string;
 }
 
@@ -21,6 +23,8 @@ interface PuzzleRow {
   difficulty: number;
   created_by: number;
   created_by_name: string;
+  is_daily: number;
+  daily_date: string | null;
   created_at: string;
 }
 
@@ -51,16 +55,31 @@ interface OwnerRow {
 }
 
 function toUser(row: UserRow): User {
-  return { id: row.id, username: row.username, createdAt: row.created_at };
+  return {
+    id: row.id,
+    username: row.username,
+    xp: row.xp,
+    level: row.level,
+    createdAt: row.created_at
+  };
 }
 
 export function findUserByUsername(username: string): { user: User; hash: string } | null {
   const row = one<UserRow>(
-    'SELECT id, username, password_hash, created_at FROM users WHERE LOWER(username) = LOWER(?)',
+    'SELECT id, username, password_hash, xp, level, created_at FROM users WHERE LOWER(username) = LOWER(?)',
     [username]
   );
   if (!row) return null;
   return { user: toUser(row), hash: row.password_hash };
+}
+
+export function findUserById(id: number): User | null {
+  const row = one<UserRow>(
+    'SELECT id, username, password_hash, xp, level, created_at FROM users WHERE id = ?',
+    [id]
+  );
+  if (!row) return null;
+  return toUser(row);
 }
 
 export function insertUser(username: string, passwordHash: string): User {
@@ -69,7 +88,7 @@ export function insertUser(username: string, passwordHash: string): User {
     passwordHash
   ]);
   const row = one<UserRow>(
-    'SELECT id, username, password_hash, created_at FROM users WHERE id = ?',
+    'SELECT id, username, password_hash, xp, level, created_at FROM users WHERE id = ?',
     [Number(res.lastInsertRowid)]
   );
   if (!row) throw new Error('Inserted user not found');
@@ -80,14 +99,18 @@ export function insertPuzzle(
   name: string,
   difficulty: Difficulty,
   cages: CageInput[],
-  createdBy: number
+  createdBy: number,
+  isDaily: boolean = false,
+  dailyDate: string | null = null
 ): number {
   return tx(() => {
     const puzId = Number(
-      run('INSERT INTO puzzles (name, difficulty, created_by) VALUES (?, ?, ?)', [
+      run('INSERT INTO puzzles (name, difficulty, created_by, is_daily, daily_date) VALUES (?, ?, ?, ?, ?)', [
         name,
         difficulty,
-        createdBy
+        createdBy,
+        isDaily ? 1 : 0,
+        dailyDate
       ]).lastInsertRowid
     );
     for (const cage of cages) {
@@ -105,13 +128,17 @@ export function insertPuzzle(
   });
 }
 
-export function listPuzzles(difficulty?: Difficulty): PuzzleSummary[] {
-  const sql = `SELECT p.id, p.name, p.difficulty, p.created_by, u.username AS created_by_name, p.created_at
+export function listPuzzles(difficulty?: Difficulty, isDaily?: boolean): PuzzleSummary[] {
+  const sql = `SELECT p.id, p.name, p.difficulty, p.created_by, u.username AS created_by_name, p.is_daily, p.daily_date, p.created_at
     FROM puzzles p
     JOIN users u ON u.id = p.created_by
-    ${difficulty ? 'WHERE p.difficulty = ?' : ''}
+    WHERE 1=1
+    ${difficulty ? 'AND p.difficulty = ?' : ''}
+    ${isDaily !== undefined ? 'AND p.is_daily = ?' : ''}
     ORDER BY datetime(p.created_at) DESC, p.id DESC`;
-  const params = difficulty ? [difficulty] : [];
+  const params: any[] = [];
+  if (difficulty) params.push(difficulty);
+  if (isDaily !== undefined) params.push(isDaily ? 1 : 0);
   const rows = many<PuzzleRow>(sql, params);
   return rows.map((r) => ({
     id: r.id,
@@ -119,13 +146,15 @@ export function listPuzzles(difficulty?: Difficulty): PuzzleSummary[] {
     difficulty: r.difficulty as Difficulty,
     createdBy: r.created_by,
     createdByName: r.created_by_name,
+    isDaily: !!r.is_daily,
+    dailyDate: r.daily_date || undefined,
     createdAt: r.created_at
   }));
 }
 
-export function getPuzzle(id: number): Puzzle | null {
+export function getPuzzle(id: number): Omit<Puzzle, 'parTimes'> | null {
   const head = one<PuzzleRow>(
-    `SELECT p.id, p.name, p.difficulty, p.created_by, u.username AS created_by_name, p.created_at
+    `SELECT p.id, p.name, p.difficulty, p.created_by, u.username AS created_by_name, p.is_daily, p.daily_date, p.created_at
      FROM puzzles p
      JOIN users u ON u.id = p.created_by
      WHERE p.id = ?`,
@@ -159,6 +188,8 @@ export function getPuzzle(id: number): Puzzle | null {
     difficulty: head.difficulty as Difficulty,
     createdBy: head.created_by,
     createdByName: head.created_by_name,
+    isDaily: !!head.is_daily,
+    dailyDate: head.daily_date || undefined,
     createdAt: head.created_at,
     cages: cageRows.map((c) => ({
       id: c.id,
@@ -182,12 +213,18 @@ export function insertResult(
   puzzleId: number,
   timeSeconds: number,
   hintsUsed: number,
-  score: number
+  score: number,
+  streakMultiplier: number = 1.0,
+  xpGained: number = 0
 ): void {
   run(
-    'INSERT INTO results (user_id, puzzle_id, time_seconds, hints_used, score) VALUES (?, ?, ?, ?, ?)',
-    [userId, puzzleId, timeSeconds, hintsUsed, score]
+    'INSERT INTO results (user_id, puzzle_id, time_seconds, hints_used, score, streak_multiplier, xp_gained) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [userId, puzzleId, timeSeconds, hintsUsed, score, streakMultiplier, xpGained]
   );
+}
+
+export function updateUserXp(userId: number, xpGained: number, newLevel: number): void {
+  run('UPDATE users SET xp = xp + ?, level = ? WHERE id = ?', [xpGained, newLevel, userId]);
 }
 
 interface AggregateRow {
@@ -208,7 +245,13 @@ interface DifficultyAggregateRow {
 export function getUserStats(userId: number): {
   totals: AggregateRow;
   byDifficulty: DifficultyAggregateRow[];
+  xp: number;
+  level: number;
 } {
+  const userRow = one<{ xp: number; level: number }>(
+    'SELECT xp, level FROM users WHERE id = ?',
+    [userId]
+  );
   const totals = one<AggregateRow>(
     `SELECT
        COUNT(*) AS total_solved,
@@ -234,7 +277,7 @@ export function getUserStats(userId: number): {
     [userId]
   );
 
-  return { totals, byDifficulty };
+  return { totals, byDifficulty, xp: userRow?.xp ?? 0, level: userRow?.level ?? 1 };
 }
 
 interface BestRow {

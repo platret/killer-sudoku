@@ -45,9 +45,9 @@ export function registerPuzzleIpc(): void {
 
   ipcMain.handle(
     'puzzle:list',
-    async (_e, input?: { difficulty?: Difficulty }): Promise<ListResult> => {
+    async (_e, input?: { difficulty?: Difficulty; isDaily?: boolean }): Promise<ListResult> => {
       try {
-        return puzzleService.list(input?.difficulty);
+        return puzzleService.list(input?.difficulty, input?.isDaily);
       } catch {
         return { puzzles: [] };
       }
@@ -72,6 +72,36 @@ export function registerPuzzleIpc(): void {
       }
     }
   );
+
+  ipcMain.handle('puzzle:import', async (_e, input: { json: string; userId: number }): Promise<CreateResult> => {
+    try {
+      const data = JSON.parse(input.json);
+      return puzzleService.create({
+        name: data.name || 'Imported Puzzle',
+        difficulty: data.difficulty || 2,
+        cages: data.cages,
+        createdBy: input.userId
+      });
+    } catch (err) {
+      return { success: false, error: 'Invalid JSON format' };
+    }
+  });
+
+  ipcMain.handle('puzzle:export', async (_e, input: { id: number }): Promise<{ json: string | null }> => {
+    try {
+      const p = puzzleService.get(input.id);
+      if (!p.puzzle) return { json: null };
+      return {
+        json: JSON.stringify({
+          name: p.puzzle.name,
+          difficulty: p.puzzle.difficulty,
+          cages: p.puzzle.cages.map(c => ({ targetSum: c.targetSum, cells: c.cells }))
+        }, null, 2)
+      };
+    } catch {
+      return { json: null };
+    }
+  });
 
   ipcMain.handle(
     'puzzle:generate',
