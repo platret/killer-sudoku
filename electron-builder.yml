@@ -1,0 +1,27 @@
+appId: com.killersudoku.app
+productName: KillerSudoku
+copyright: Copyright (c) 2026
+asar: true
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**"
+npmRebuild: true
+directories:
+  output: executable
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - sudoku.sql
+  - "!**/*.map"
+  - "!**/.DS_Store"
+extraMetadata:
+  main: out/main/index.js
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  artifactName: ${productName}.${ext}
+  icon: src/renderer/assets/icon.ico
+portable:
+  artifactName: ${productName}.${ext}

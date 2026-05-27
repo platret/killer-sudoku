@@ -1,0 +1,21 @@
+node_modules/
+out/
+executable/
+dist/
+*.log
+.DS_Store
+
+# Local editor / OS
+.vscode/
+.idea/
+
+# Build artifacts
+*.tsbuildinfo
+.eslintcache
+
+# Env
+.env
+.env.local
+
+# Native rebuilds
+**/node_modules/better-sqlite3/build/Release/*.node

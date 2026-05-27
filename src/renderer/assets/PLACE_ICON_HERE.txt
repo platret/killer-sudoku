@@ -1,0 +1,9 @@
+Drop icon.png (256x256, transparent PNG) here before building the Windows executable.
+
+The logo prompt is printed to the console on every app start, and also
+documented in docs/plan.md and docs/review.md.
+
+After placing icon.png, run:
+    node -e "const p=require('png-to-ico');const fs=require('fs');p(['src/renderer/assets/icon.png']).then(i=>{fs.writeFileSync('src/renderer/assets/icon.ico',i);console.log('ICO done')})"
+to generate icon.ico, then build with:
+    npm run build:win
