@@ -179,7 +179,7 @@ export function CreatePage(): JSX.Element {
           style={{ width: CELL * 9, height: CELL * 9 }}
         >
           <div
-            className="absolute inset-0 grid bg-bg-base border-2 border-line-strong"
+            className="absolute inset-0 grid bg-bg-base border-2 border-line-strong/20"
             style={{
               gridTemplateColumns: `repeat(9, ${CELL}px)`,
               gridTemplateRows: `repeat(9, ${CELL}px)`
@@ -197,10 +197,10 @@ export function CreatePage(): JSX.Element {
                    className={cn(
                      'relative flex items-center justify-center text-[10px] font-mono text-ink-dim',
                      'transition-colors',
-                     row % 3 === 0 ? 'border-t-2 border-t-line-strong' : 'border-t border-t-line',
-                     col % 3 === 0 ? 'border-l-2 border-l-line-strong' : 'border-l border-l-line',
-                     row === 8 ? 'border-b-2 border-b-line-strong' : '',
-                     col === 8 ? 'border-r-2 border-r-line-strong' : '',
+                     row % 3 === 0 ? 'border-t-2 border-t-line-strong/20' : 'border-t border-t-line/10',
+                     col % 3 === 0 ? 'border-l-2 border-l-line-strong/20' : 'border-l border-l-line/10',
+                     row === 8 ? 'border-b-2 border-b-line-strong/20' : '',
+                     col === 8 ? 'border-r-2 border-r-line-strong/20' : '',
                      cIdx !== -1 ? 'cursor-default' : 'cursor-pointer hover:bg-bg-surface'
                    )}
                    style={{

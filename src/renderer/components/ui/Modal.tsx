@@ -8,17 +8,30 @@ interface ModalProps {
   title?: string;
   children: ReactNode;
   className?: string;
+  /**
+   * When `false`, clicking the backdrop and pressing Escape do NOT close the modal.
+   * Use for destructive confirmations and completion screens where accidental
+   * dismiss would lose work.
+   */
+  dismissible?: boolean;
 }
 
-export function Modal({ open, onClose, title, children, className }: ModalProps): JSX.Element {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  className,
+  dismissible = true
+}: ModalProps): JSX.Element {
   useEffect(() => {
-    if (!open) return;
+    if (!open || !dismissible) return;
     const handler = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [open, onClose, dismissible]);
 
   return (
     <AnimatePresence>
@@ -30,7 +43,10 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
         >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={dismissible ? onClose : undefined}
+          />
           <motion.div
             role="dialog"
             aria-modal

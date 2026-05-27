@@ -24,11 +24,15 @@ const api: ElectronAPI = {
     save: (input) => ipcRenderer.invoke('result:save', input),
     highscores: (input) => ipcRenderer.invoke('result:highscores', input ?? {}),
     stats: (input) => ipcRenderer.invoke('result:stats', input),
-    export: (input) => ipcRenderer.invoke('result:export', input)
+    export: (input) => ipcRenderer.invoke('result:export', input),
+    bestForPuzzle: (input) => ipcRenderer.invoke('result:bestForPuzzle', input),
+    streak: (input) => ipcRenderer.invoke('result:streak', input),
+    history: (input) => ipcRenderer.invoke('result:history', input)
   },
   settings: {
     get: (input) => ipcRenderer.invoke('settings:get', input),
-    set: (input) => ipcRenderer.invoke('settings:set', input)
+    set: (input) => ipcRenderer.invoke('settings:set', input),
+    clearProgress: (input) => ipcRenderer.invoke('settings:clearProgress', input)
   },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),

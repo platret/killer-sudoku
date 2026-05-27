@@ -10,7 +10,9 @@ interface Props {
   notes: ReadonlyArray<Set<number>>;
   selected: number | null;
   errors: Set<number>;
+  errorVersion?: number;
   hinted: Set<number>;
+  givens?: Set<number>;
   cages: CageLike[];
   cellSize?: number;
   highlightCageIdx?: number | null;
@@ -40,7 +42,9 @@ export function Grid({
   notes,
   selected,
   errors,
+  errorVersion = 0,
   hinted,
+  givens,
   cages,
   cellSize = 54,
   highlightCageIdx,
@@ -54,7 +58,7 @@ export function Grid({
     <div
       role="grid"
       aria-label="Sudoku grid"
-      className="relative bg-bg-base border-2 border-line-strong shadow-elev"
+      className="relative bg-bg-base border-2 border-line-strong/20 shadow-elev"
       style={{ width: cellSize * 9, height: cellSize * 9 }}
     >
       <div
@@ -74,7 +78,9 @@ export function Grid({
             peer={peers.has(i)}
             sameValue={selectedValue !== null && selectedValue !== undefined && values[i] === selectedValue && i !== selected}
             error={errors.has(i)}
+            errorVersion={errorVersion}
             hinted={hinted.has(i)}
+            given={givens?.has(i) ?? false}
             cellSize={cellSize}
             onClick={onSelect}
             readOnly={readOnly}

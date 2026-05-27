@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/Toaster';
 import { CommandPalette } from './components/palette/CommandPalette';
 import { ShortcutsOverlay } from './components/shortcuts/ShortcutsOverlay';
 import { SplashScreen } from './components/animations/SplashScreen';
+import { HowToPlay } from './components/help/HowToPlay';
 import { StartPage } from './pages/StartPage';
 import { AuthPage } from './pages/AuthPage';
 import { PuzzleListPage } from './pages/PuzzleListPage';
@@ -13,8 +14,11 @@ import { SolvePage } from './pages/SolvePage';
 import { CreatePage } from './pages/CreatePage';
 import { HighscorePage } from './pages/HighscorePage';
 import { StatsPage } from './pages/StatsPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { useApp } from './lib/store';
 import { hasApi, safeApi } from './lib/ipc';
+import { setSoundMuted } from './lib/sounds';
+import type { Difficulty } from '@shared/types';
 
 interface BoundaryState {
   error: Error | null;
@@ -40,7 +44,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
             <p className="text-sm text-ink-muted mb-4">
               The UI crashed. Reload the window to recover. Full stack below.
             </p>
-            <pre className="text-xs text-danger bg-bg-surface border border-line rounded-md p-3 overflow-auto max-h-80 font-mono whitespace-pre-wrap">
+            <pre className="text-xs text-danger bg-bg-surface border border-line/10 rounded-md p-3 overflow-auto max-h-80 font-mono whitespace-pre-wrap">
               {this.state.error.message}
               {'\n\n'}
               {this.state.error.stack ?? ''}
@@ -78,7 +82,8 @@ function ViewSwitch(): JSX.Element {
     view.kind === 'solve' ||
     view.kind === 'create' ||
     view.kind === 'highscore' ||
-    view.kind === 'stats';
+    view.kind === 'stats' ||
+    view.kind === 'settings';
 
   if (requiresAuth && !user) return <AuthPage />;
 
@@ -97,6 +102,8 @@ function ViewSwitch(): JSX.Element {
       return <HighscorePage />;
     case 'stats':
       return <StatsPage />;
+    case 'settings':
+      return <SettingsPage />;
     default:
       return <StartPage />;
   }
@@ -105,6 +112,9 @@ function ViewSwitch(): JSX.Element {
 export default function App(): JSX.Element {
   const view = useApp((s) => s.view);
   const setReducedMotion = useApp((s) => s.setReducedMotion);
+  const setSoundsMuted = useApp((s) => s.setSoundsMuted);
+  const setDefaultDifficulty = useApp((s) => s.setDefaultDifficulty);
+  const setTheme = useApp((s) => s.setTheme);
   const [dbReady, setDbReady] = useState<{ ok: boolean; error?: string } | null>(null);
   const [splashDone, setSplashDone] = useState(false);
   const apiPresent = hasApi();
@@ -140,18 +150,33 @@ export default function App(): JSX.Element {
     if (!apiPresent || !dbReady?.ok) return;
     const api = safeApi();
     if (!api) return;
-    api.settings.get({ key: 'reducedMotion' })
-      .then((r) => {
-        if (r.value === '1') setReducedMotion(true);
+    void Promise.all([
+      api.settings.get({ key: 'reducedMotion' }),
+      api.settings.get({ key: 'soundsMuted' }),
+      api.settings.get({ key: 'defaultDifficulty' }),
+      api.settings.get({ key: 'theme' })
+    ])
+      .then(([rm, sm, dd, th]) => {
+        if (rm.value === '1') setReducedMotion(true);
+        if (sm.value === '1') {
+          setSoundsMuted(true);
+          setSoundMuted(true);
+        }
+        if (dd.value) {
+          const n = Number(dd.value);
+          if (n === 1 || n === 2 || n === 3) setDefaultDifficulty(n as Difficulty);
+        }
+        if (th.value === 'light' || th.value === 'dark') setTheme(th.value);
       })
-      .catch(() => { /* setting is optional */ });
-  }, [apiPresent, dbReady?.ok, setReducedMotion]);
+      .catch(() => { /* settings optional */ });
+  }, [apiPresent, dbReady?.ok, setReducedMotion, setSoundsMuted, setDefaultDifficulty, setTheme]);
 
   const viewKey = (() => {
     if (view.kind === 'solve') return `solve-${view.puzzleId}`;
     if (view.kind === 'highscore') return `highscore-${view.puzzleId ?? 'all'}`;
-    if (view.kind === 'auth') return `auth-${view.mode}`;
+    if (view.kind === 'auth') return 'auth';
     if (view.kind === 'stats') return 'stats';
+    if (view.kind === 'settings') return 'settings';
     return view.kind;
   })();
 
@@ -189,6 +214,7 @@ export default function App(): JSX.Element {
       </div>
       {apiPresent ? <CommandPalette /> : null}
       {apiPresent ? <ShortcutsOverlay /> : null}
+      <HowToPlay />
       <Toaster />
       {!splashDone ? <SplashScreen onComplete={() => setSplashDone(true)} /> : null}
     </div>

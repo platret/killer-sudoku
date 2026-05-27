@@ -7,19 +7,19 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          base: '#0c0b09',
-          panel: '#16140f',
-          surface: '#1d1a14',
-          elevated: '#211d16'
+          base: 'rgb(var(--bg-base) / <alpha-value>)',
+          panel: 'rgb(var(--bg-panel) / <alpha-value>)',
+          surface: 'rgb(var(--bg-surface) / <alpha-value>)',
+          elevated: 'rgb(var(--bg-elevated) / <alpha-value>)'
         },
         line: {
-          DEFAULT: '#ffffff14',
-          strong: '#ffffff26'
+          DEFAULT: 'rgb(var(--line) / <alpha-value>)',
+          strong: 'rgb(var(--line) / <alpha-value>)'
         },
         ink: {
-          DEFAULT: '#f3eee2',
-          muted: '#a39a8a',
-          dim: '#80776a'
+          DEFAULT: 'rgb(var(--ink) / <alpha-value>)',
+          muted: 'rgb(var(--ink-muted) / <alpha-value>)',
+          dim: 'rgb(var(--ink-dim) / <alpha-value>)'
         },
         accent: {
           DEFAULT: '#f4a72c',
@@ -51,9 +51,12 @@ const config: Config = {
       },
       backgroundImage: {
         'accent-gradient': 'linear-gradient(135deg, #7a3e12 0%, #b5651d 50%, #f4a72c 100%)',
-        'hero-gradient': 'linear-gradient(120deg, #ffb845 0%, #f4a72c 35%, #f3eee2 100%)',
-        'card-sheen': 'linear-gradient(160deg, rgba(244,167,44,0.10) 0%, rgba(244,167,44,0) 60%)',
-        'dot-grid': 'radial-gradient(circle at 1px 1px, rgba(244,167,44,0.12) 1px, transparent 0)'
+        'hero-gradient':
+          'linear-gradient(120deg, #ffb845 0%, #f4a72c 35%, rgb(var(--ink)) 100%)',
+        'card-sheen':
+          'linear-gradient(160deg, rgba(244,167,44,0.10) 0%, rgba(244,167,44,0) 60%)',
+        'dot-grid':
+          'radial-gradient(circle at 1px 1px, rgba(244,167,44,0.12) 1px, transparent 0)'
       },
       keyframes: {
         shake: {

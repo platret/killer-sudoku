@@ -150,12 +150,18 @@ describe('solverService', () => {
     expect(r.complete).toBe(false);
   });
 
-  it('TC-27 score formula respects clamps and weights (used for tiebreaks)', () => {
-    expect(scoreOf(0, 0)).toBe(10000);
-    expect(scoreOf(100, 0)).toBe(9500);
-    expect(scoreOf(0, 5)).toBe(7500);
-    expect(scoreOf(10, 1)).toBe(10000 - 50 - 500);
-    expect(scoreOf(5000, 100)).toBe(0);
+  it('TC-27 score formula is multiplicative and difficulty-aware', () => {
+    // Default difficulty = medium (base 8000, par 720s)
+    expect(scoreOf(0, 0)).toBe(8000);
+    expect(scoreOf(720, 0)).toBe(4000); // half time-mul at par
+    expect(scoreOf(0, 5)).toBe(6000); // five hints → 75% hint-mul
+    // Easy base 4000, hard base 14000 at clean clear
+    expect(scoreOf(0, 0, 1)).toBe(4000);
+    expect(scoreOf(0, 0, 3)).toBe(14000);
+    // Floors: extreme hints still yield 5% of base, never 0
+    expect(scoreOf(0, 200, 2)).toBe(400);
+    // Extreme time floors at 20% of base
+    expect(scoreOf(99999, 0, 2)).toBe(1600);
   });
 
   it('TC-27 equal-input scores are equal (tiebreaker delegated to listHighscores)', () => {

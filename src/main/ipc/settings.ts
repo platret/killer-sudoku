@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import * as settingsService from '../services/settingsService';
-import type { SettingGet, SettingSet } from '@shared/types';
+import type { ClearProgressResult, SettingGet, SettingSet } from '@shared/types';
 
 export function registerSettingsIpc(): void {
   ipcMain.handle(
@@ -21,6 +21,17 @@ export function registerSettingsIpc(): void {
         return settingsService.set(input.key, input.value, input.userId);
       } catch {
         return { success: false };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'settings:clearProgress',
+    async (_e, input: { userId: number }): Promise<ClearProgressResult> => {
+      try {
+        return settingsService.clearProgress(input.userId);
+      } catch {
+        return { success: false, cleared: 0 };
       }
     }
   );

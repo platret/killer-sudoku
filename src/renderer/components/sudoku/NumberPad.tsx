@@ -23,7 +23,7 @@ export function NumberPad({ notesMode, onToggleNotes, onDigit, onErase }: Props)
               whileHover={{ y: -1 }}
               onClick={() => onDigit(n)}
               className={cn(
-                'h-12 w-12 rounded-md border border-line bg-bg-surface text-ink font-semibold text-lg',
+                'h-12 w-12 rounded-md border border-line/10 bg-bg-surface text-ink font-semibold text-lg',
                 'hover:border-strong hover:bg-bg-elevated transition-colors focus-ring tabular-num',
                 notesMode ? 'text-ink-muted' : ''
               )}

@@ -38,13 +38,13 @@ export function ShortcutsOverlay(): JSX.Element {
     <Modal open={open} onClose={() => setOpen(false)} title="Keyboard shortcuts" className="max-w-lg">
       <div className="grid grid-cols-1 gap-2">
         {ROWS.map((r) => (
-          <div key={r.label} className="flex items-center justify-between py-2 border-b border-line last:border-b-0">
+          <div key={r.label} className="flex items-center justify-between py-2 border-b border-line/10 last:border-b-0">
             <span className="text-sm text-ink">{r.label}</span>
             <div className="flex items-center gap-1">
               {r.keys.map((k) => (
                 <kbd
                   key={k}
-                  className="text-[11px] font-mono px-2 py-0.5 rounded bg-bg-elevated border border-line text-ink-muted"
+                  className="text-[11px] font-mono px-2 py-0.5 rounded bg-bg-elevated border border-line/10 text-ink-muted"
                 >
                   {k}
                 </kbd>

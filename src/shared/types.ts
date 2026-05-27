@@ -28,6 +28,7 @@ export interface PuzzleSummary {
 
 export interface Puzzle extends PuzzleSummary {
   cages: Cage[];
+  givens: (number | null)[];
 }
 
 export interface CheckResult {
@@ -149,6 +150,37 @@ export interface UserStats {
   byDifficulty: DifficultyStats[];
 }
 
+export interface BestForPuzzle {
+  timeSeconds: number;
+  hintsUsed: number;
+  score: number;
+  completedAt: string;
+}
+
+export interface StreakInfo {
+  solvedToday: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+export interface ClearProgressResult {
+  success: boolean;
+  cleared: number;
+}
+
+export interface SolveHistoryEntry {
+  completedAt: string;
+  timeSeconds: number;
+  hintsUsed: number;
+  score: number;
+  difficulty: Difficulty;
+  puzzleName: string;
+}
+
+export interface SolveHistory {
+  entries: SolveHistoryEntry[];
+}
+
 export interface ExportResult {
   success: boolean;
   path?: string;
@@ -193,10 +225,17 @@ export interface ElectronAPI {
     highscores: (input?: { puzzleId?: number }) => Promise<HighscoreList>;
     stats: (input: { userId: number }) => Promise<UserStats>;
     export: (input: { format: 'csv' | 'json'; puzzleId?: number }) => Promise<ExportResult>;
+    bestForPuzzle: (input: {
+      userId: number;
+      puzzleId: number;
+    }) => Promise<{ best: BestForPuzzle | null }>;
+    streak: (input: { userId: number }) => Promise<StreakInfo>;
+    history: (input: { userId: number; limit?: number }) => Promise<SolveHistory>;
   };
   settings: {
     get: (input: { key: string; userId?: number }) => Promise<SettingGet>;
     set: (input: { key: string; value: string; userId?: number }) => Promise<SettingSet>;
+    clearProgress: (input: { userId: number }) => Promise<ClearProgressResult>;
   };
   window: {
     minimize: () => void;

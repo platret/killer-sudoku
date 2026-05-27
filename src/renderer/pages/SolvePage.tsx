@@ -6,8 +6,11 @@ import {
   Eye,
   Flag,
   Lightbulb,
+  MousePointerClick,
   Redo2,
+  RotateCcw,
   Sparkles,
+  Trophy,
   Undo2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -25,7 +28,12 @@ import { api, safeApi } from '@/lib/ipc';
 import { difficultyLabel, formatTime } from '@/lib/utils';
 import { exportPngBase64, type CardData } from '@/lib/exportCard';
 import { playSound } from '@/lib/sounds';
-import type { Cell as CellValue, Grid as GridValues, Puzzle } from '@shared/types';
+import type {
+  BestForPuzzle,
+  Cell as CellValue,
+  Grid as GridValues,
+  Puzzle
+} from '@shared/types';
 
 type Move =
   | { kind: 'value'; idx: number; prev: CellValue; next: CellValue; prevNotes: number[] }
@@ -59,9 +67,12 @@ export function SolvePage(): JSX.Element {
   const [notes, setNotes] = useState<Set<number>[]>(emptyNotes);
   const [selected, setSelected] = useState<number | null>(40);
   const [errors, setErrors] = useState<Set<number>>(new Set());
+  const [errorVersion, setErrorVersion] = useState(0);
   const [hinted, setHinted] = useState<Set<number>>(new Set());
+  const [givenSet, setGivenSet] = useState<Set<number>>(new Set());
   const [notesMode, setNotesMode] = useState(false);
   const [hintsUsed, setHintsUsed] = useState(0);
+  const [moves, setMoves] = useState(0);
 
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [finalSeconds, setFinalSeconds] = useState<number | null>(null);
@@ -69,7 +80,9 @@ export function SolvePage(): JSX.Element {
   const [completeOpen, setCompleteOpen] = useState(false);
   const [forfeited, setForfeited] = useState(false);
   const [forfeitConfirm, setForfeitConfirm] = useState(false);
+  const [restartConfirm, setRestartConfirm] = useState(false);
   const [exportingPng, setExportingPng] = useState(false);
+  const [previousBest, setPreviousBest] = useState<BestForPuzzle | null>(null);
 
   const undoStack = useRef<Move[]>([]);
   const redoStack = useRef<Move[]>([]);
@@ -86,13 +99,26 @@ export function SolvePage(): JSX.Element {
     setValues(Array(81).fill(null));
     setNotes(emptyNotes());
     setHintsUsed(0);
+    setMoves(0);
     setHinted(new Set());
     setErrors(new Set());
+    setErrorVersion(0);
     setFinalSeconds(null);
     setScore(null);
     setCompleteOpen(false);
     setForfeited(false);
     setForfeitConfirm(false);
+    setRestartConfirm(false);
+    setPreviousBest(null);
+
+    if (user) {
+      void api()
+        .result.bestForPuzzle({ userId: user.id, puzzleId })
+        .then((r) => {
+          if (!cancelled) setPreviousBest(r.best);
+        })
+        .catch(() => { /* no best yet */ });
+    }
 
     void api().puzzle.get({ id: puzzleId }).then(async (res) => {
       if (cancelled || !res.puzzle) {
@@ -103,6 +129,12 @@ export function SolvePage(): JSX.Element {
         return;
       }
       setPuzzle(res.puzzle);
+
+      const givens = res.puzzle.givens ?? Array(81).fill(null);
+      const givenIdx = new Set<number>();
+      givens.forEach((v, i) => { if (v !== null) givenIdx.add(i); });
+      setGivenSet(givenIdx);
+      const initialValues: GridValues = givens.slice();
 
       let restored = false;
       if (user) {
@@ -115,8 +147,16 @@ export function SolvePage(): JSX.Element {
               data.values.length === 81 &&
               data.values.some((v) => v !== null)
             ) {
-              setValues(data.values);
-              setNotes(data.notes.map((arr) => new Set(arr)));
+              // Overlay persisted values on top of givens so givens stay locked.
+              const merged: GridValues = givens.slice();
+              for (let i = 0; i < 81; i++) {
+                if (givenIdx.has(i)) continue;
+                merged[i] = data.values[i] ?? null;
+              }
+              setValues(merged);
+              setNotes(
+                data.notes.map((arr, i) => (givenIdx.has(i) ? new Set<number>() : new Set(arr)))
+              );
               setHintsUsed(data.hintsUsed ?? 0);
               setStartedAt(Date.now() - (data.elapsedSeconds ?? 0) * 1000);
               restored = true;
@@ -128,7 +168,10 @@ export function SolvePage(): JSX.Element {
         }
       }
 
-      if (!restored) setStartedAt(Date.now());
+      if (!restored) {
+        setValues(initialValues);
+        setStartedAt(Date.now());
+      }
       setLoading(false);
       initialized.current = true;
     });
@@ -148,6 +191,7 @@ export function SolvePage(): JSX.Element {
         const prevNotes = Array.from(notes[idx] ?? new Set<number>());
         undoStack.current.push({ kind: 'value', idx, prev: values[idx] ?? null, next, prevNotes });
         redoStack.current = [];
+        setMoves((n) => n + 1);
       }
       setNotes((prev) => {
         const arr = prev.slice();
@@ -172,6 +216,7 @@ export function SolvePage(): JSX.Element {
       });
       undoStack.current.push({ kind: 'notes', idx, prev, next: nextArr });
       redoStack.current = [];
+      setMoves((n) => n + 1);
     },
     [notes]
   );
@@ -217,6 +262,7 @@ export function SolvePage(): JSX.Element {
   const enterDigit = useCallback(
     (n: number) => {
       if (selected === null || finalSeconds !== null) return;
+      if (givenSet.has(selected)) return;
       if (notesMode) {
         if (values[selected] !== null) return;
         playSound.toggle();
@@ -224,16 +270,21 @@ export function SolvePage(): JSX.Element {
         return;
       }
       playSound.place();
+      // Each value entry bumps errorVersion so that if the next check produces
+      // an error on the same cell, the shake animation restarts via the cell's
+      // re-key.
+      setErrorVersion((v) => v + 1);
       setValueAt(selected, n, true);
     },
-    [selected, notesMode, finalSeconds, values, toggleNote, setValueAt]
+    [selected, notesMode, finalSeconds, values, toggleNote, setValueAt, givenSet]
   );
 
   const clearCell = useCallback(() => {
     if (selected === null || finalSeconds !== null) return;
+    if (givenSet.has(selected)) return;
     playSound.clear();
     setValueAt(selected, null, true);
-  }, [selected, setValueAt, finalSeconds]);
+  }, [selected, setValueAt, finalSeconds, givenSet]);
 
   const moveSelection = useCallback((dr: number, dc: number) => {
     setSelected((curr) => {
@@ -268,6 +319,28 @@ export function SolvePage(): JSX.Element {
     });
     setSelected(res.cellIndex);
   }, [puzzle, values, selected, finalSeconds, setValueAt]);
+
+  const performRestart = useCallback(() => {
+    if (!puzzle || finalSeconds !== null) return;
+    const reset: GridValues = (puzzle.givens ?? Array(81).fill(null)).slice();
+    setValues(reset);
+    setNotes(emptyNotes());
+    setErrors(new Set());
+    setErrorVersion((v) => v + 1);
+    setHinted(new Set());
+    setHintsUsed(0);
+    setMoves(0);
+    setForfeited(false);
+    setSelected(40);
+    undoStack.current = [];
+    redoStack.current = [];
+    completed.current = false;
+    setStartedAt(Date.now());
+    if (user) {
+      void api().settings.set({ key: progressKey(user.id, puzzle.id), value: '' });
+    }
+    toast.message('Puzzle restarted');
+  }, [puzzle, finalSeconds, user]);
 
   const performForfeit = useCallback(async () => {
     if (!puzzle || finalSeconds !== null || completed.current) return;
@@ -313,7 +386,11 @@ export function SolvePage(): JSX.Element {
           setScore(saveRes.score);
           void api().settings.set({ key: progressKey(user.id, puzzle.id), value: '' });
         } else {
-          setScore(Math.max(0, 10000 - seconds * 5 - hintsUsed * 500));
+          const base = puzzle.difficulty === 1 ? 4000 : puzzle.difficulty === 3 ? 14000 : 8000;
+          const par = puzzle.difficulty === 1 ? 360 : puzzle.difficulty === 3 ? 1500 : 720;
+          const timeMul = Math.max(0.2, 1 - seconds / (par * 2));
+          const hintMul = Math.max(0.05, 1 - hintsUsed * 0.05);
+          setScore(Math.round(base * timeMul * hintMul));
         }
         setCompleteOpen(true);
         playSound.success();
@@ -521,12 +598,40 @@ export function SolvePage(): JSX.Element {
               {difficultyLabel(puzzle.difficulty)} · by {puzzle.createdByName}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Timer startedAt={startedAt} finalSeconds={finalSeconds} />
-            <div className="flex items-center gap-1 px-3 py-2 rounded-md border border-line bg-bg-surface/80 backdrop-blur text-xs text-ink-muted">
-              <Lightbulb className="h-3.5 w-3.5" />
-              <span className="tabular-num text-ink">{hintsUsed}</span>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              <Timer startedAt={startedAt} finalSeconds={finalSeconds} />
+              <div
+                className="flex items-center gap-1 px-3 py-2 rounded-md border border-line/10 bg-bg-surface/80 backdrop-blur text-xs text-ink-muted"
+                aria-label={`${hintsUsed} hints used`}
+              >
+                <Lightbulb className="h-3.5 w-3.5" />
+                <span className="tabular-num text-ink">{hintsUsed}</span>
+              </div>
+              <div
+                className="flex items-center gap-1 px-3 py-2 rounded-md border border-line/10 bg-bg-surface/80 backdrop-blur text-xs text-ink-muted"
+                aria-label={`${moves} moves`}
+                title="Moves made (anything you can undo)"
+              >
+                <MousePointerClick className="h-3.5 w-3.5" />
+                <span className="tabular-num text-ink">{moves}</span>
+              </div>
             </div>
+            {previousBest ? (
+              <div className="text-[11px] text-ink-muted inline-flex items-center gap-2">
+                <Trophy className="h-3 w-3 text-cyan-glow" />
+                <span>
+                  Your best:{' '}
+                  <span className="font-mono tabular-num text-cyan-glow">
+                    {formatTime(previousBest.timeSeconds)}
+                  </span>
+                  {' · '}
+                  <span className="font-mono tabular-num text-ink">
+                    {previousBest.hintsUsed} hint{previousBest.hintsUsed === 1 ? '' : 's'}
+                  </span>
+                </span>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -539,7 +644,9 @@ export function SolvePage(): JSX.Element {
                 notes={notes}
                 selected={selected}
                 errors={errors}
+                errorVersion={errorVersion}
                 hinted={hinted}
+                givens={givenSet}
                 cages={puzzle.cages}
                 highlightCageIdx={selectedCageInfo?.cageIdx ?? null}
                 onSelect={setSelected}
@@ -567,10 +674,19 @@ export function SolvePage(): JSX.Element {
                 Hint
               </Button>
               <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setRestartConfirm(true)}
+                aria-label="Restart this puzzle"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Restart
+              </Button>
+              <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setForfeitConfirm(true)}
-                className="text-danger hover:text-danger hover:bg-danger/10"
+                className="col-span-2 text-danger hover:text-danger hover:bg-danger/10"
               >
                 <Flag className="h-4 w-4" />
                 Forfeit
@@ -670,6 +786,7 @@ export function SolvePage(): JSX.Element {
           onClose={() => setCompleteOpen(false)}
           title={forfeited ? 'Forfeited' : 'Puzzle complete'}
           className="max-w-lg"
+          dismissible={false}
         >
           <div className="relative text-center py-2">
             {completeOpen && !forfeited ? <ConfettiBurst /> : null}
@@ -737,6 +854,7 @@ export function SolvePage(): JSX.Element {
           open={forfeitConfirm}
           onClose={() => setForfeitConfirm(false)}
           title="Forfeit this puzzle?"
+          dismissible={false}
         >
           <p className="text-sm text-ink-muted mb-2">
             The full solution will be revealed and the timer stops.
@@ -758,6 +876,36 @@ export function SolvePage(): JSX.Element {
             >
               <Flag className="h-4 w-4" />
               Forfeit
+            </Button>
+          </div>
+        </Modal>
+
+        <Modal
+          open={restartConfirm}
+          onClose={() => setRestartConfirm(false)}
+          title="Restart this puzzle?"
+          dismissible={false}
+        >
+          <p className="text-sm text-ink-muted mb-2">
+            All your current entries, notes, hints, and timer will be cleared. The puzzle stays in
+            your list.
+          </p>
+          <p className="text-sm text-ink-muted mb-6">
+            <span className="text-warning font-medium">No score is saved</span> until you finish.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setRestartConfirm(false)}>
+              Keep solving
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setRestartConfirm(false);
+                performRestart();
+              }}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Restart
             </Button>
           </div>
         </Modal>

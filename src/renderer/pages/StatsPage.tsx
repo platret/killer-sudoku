@@ -13,10 +13,11 @@ import { HomeBackdrop } from '@/components/animations/HomeBackdrop';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { AnimatedNumber } from '@/components/animations/AnimatedNumber';
 import { EmptyState } from '@/components/animations/EmptyState';
+import { HistoryChart } from '@/components/stats/HistoryChart';
 import { useApp } from '@/lib/store';
 import { api } from '@/lib/ipc';
 import { difficultyLabel, formatTime } from '@/lib/utils';
-import type { UserStats } from '@shared/types';
+import type { SolveHistoryEntry, UserStats } from '@shared/types';
 
 interface MetricCardProps {
   icon: JSX.Element;
@@ -59,14 +60,20 @@ export function StatsPage(): JSX.Element {
   const user = useApp((s) => s.user);
   const setView = useApp((s) => s.setView);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [history, setHistory] = useState<SolveHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    void api()
-      .result.stats({ userId: user.id })
-      .then((s) => setStats(s))
+    void Promise.all([
+      api().result.stats({ userId: user.id }),
+      api().result.history({ userId: user.id, limit: 30 })
+    ])
+      .then(([s, h]) => {
+        setStats(s);
+        setHistory(h.entries);
+      })
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -154,6 +161,17 @@ export function StatsPage(): JSX.Element {
                 />
               </motion.div>
             </motion.div>
+
+            {history.length > 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="mb-8"
+              >
+                <HistoryChart entries={history} />
+              </motion.div>
+            ) : null}
 
             <motion.div
               initial={{ opacity: 0, y: 8 }}

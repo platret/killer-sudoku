@@ -9,10 +9,37 @@
 @layer base {
   :root {
     color-scheme: dark;
+    /* Dark theme (default) — ember palette */
+    --bg-base: 12 11 9;
+    --bg-panel: 22 20 15;
+    --bg-surface: 29 26 20;
+    --bg-elevated: 33 29 22;
+    --ink: 243 238 226;
+    --ink-muted: 163 154 138;
+    --ink-dim: 128 119 106;
+    --line: 255 255 255;
+    --scrollbar-thumb: #2a241a;
+    --scrollbar-thumb-hover: #3a3225;
+    --app-bg: #0c0b09;
+  }
+  :root.light {
+    color-scheme: light;
+    /* Light theme — warm paper, deep ember ink. Deeper panels + ink for contrast. */
+    --bg-base: 252 247 235;
+    --bg-panel: 234 220 192;
+    --bg-surface: 220 204 172;
+    --bg-elevated: 255 252 240;
+    --ink: 30 18 8;
+    --ink-muted: 78 60 40;
+    --ink-dim: 122 100 76;
+    --line: 30 18 8;
+    --scrollbar-thumb: #c9b890;
+    --scrollbar-thumb-hover: #b8a378;
+    --app-bg: #fcf7eb;
   }
   html, body, #root {
     height: 100%;
-    background: #0c0b09;
+    background: var(--app-bg);
     overflow: hidden;
   }
   body {
@@ -32,11 +59,11 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a241a;
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a3225;
+    background: var(--scrollbar-thumb-hover);
   }
 }
 
@@ -48,7 +75,7 @@
     -webkit-app-region: no-drag;
   }
   .surface {
-    @apply bg-bg-panel border border-line rounded-lg;
+    @apply bg-bg-panel border border-line/10 rounded-lg;
   }
   .tabular-num {
     font-variant-numeric: tabular-nums;
