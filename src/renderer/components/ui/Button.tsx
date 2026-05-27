@@ -15,10 +15,10 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'chi
 
 const variants: Record<Variant, string> = {
   primary: 'bg-accent text-accent-foreground hover:bg-accent-hover',
-  secondary: 'bg-bg-surface text-ink hover:bg-bg-elevated border border-line',
+  secondary: 'bg-bg-surface text-ink hover:bg-bg-elevated border border-line/10',
   ghost: 'bg-transparent text-ink hover:bg-bg-surface',
   danger: 'bg-danger text-white hover:bg-red-500',
-  outline: 'bg-transparent text-ink border border-line hover:border-strong'
+  outline: 'bg-transparent text-ink border border-line/10 hover:border-strong'
 };
 
 const sizes: Record<Size, string> = {

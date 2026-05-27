@@ -164,7 +164,8 @@ export function getPuzzle(id: number): Puzzle | null {
       id: c.id,
       targetSum: c.target_sum,
       cells: cellsByCage.get(c.id) ?? []
-    }))
+    })),
+    givens: Array(81).fill(null)
   };
 }
 
@@ -234,6 +235,79 @@ export function getUserStats(userId: number): {
   );
 
   return { totals, byDifficulty };
+}
+
+interface BestRow {
+  time_seconds: number;
+  hints_used: number;
+  score: number;
+  completed_at: string;
+}
+
+export function getBestForUserPuzzle(
+  userId: number,
+  puzzleId: number
+): BestRow | null {
+  const row = one<BestRow>(
+    `SELECT time_seconds, hints_used, score, completed_at
+     FROM results
+     WHERE user_id = ? AND puzzle_id = ?
+     ORDER BY score DESC, time_seconds ASC, hints_used ASC
+     LIMIT 1`,
+    [userId, puzzleId]
+  );
+  return row ?? null;
+}
+
+interface CompletionDateRow {
+  day: string;
+}
+
+export function getCompletionDays(userId: number): string[] {
+  // Local-date strings (YYYY-MM-DD) for every solve. SQLite stores UTC datetime,
+  // so we convert to localtime before truncating.
+  const rows = many<CompletionDateRow>(
+    `SELECT DISTINCT date(completed_at, 'localtime') AS day
+     FROM results
+     WHERE user_id = ?
+     ORDER BY day DESC`,
+    [userId]
+  );
+  return rows.map((r) => r.day);
+}
+
+interface ResultHistoryRow {
+  completed_at: string;
+  time_seconds: number;
+  hints_used: number;
+  score: number;
+  difficulty: number;
+  puzzle_name: string;
+}
+
+export function getResultHistory(
+  userId: number,
+  limit: number
+): ResultHistoryRow[] {
+  return many<ResultHistoryRow>(
+    `SELECT r.completed_at, r.time_seconds, r.hints_used, r.score,
+            p.difficulty, p.name AS puzzle_name
+       FROM results r
+       JOIN puzzles p ON p.id = r.puzzle_id
+      WHERE r.user_id = ?
+      ORDER BY datetime(r.completed_at) DESC, r.id DESC
+      LIMIT ?`,
+    [userId, limit]
+  );
+}
+
+export function deleteProgressSettingsFor(userId: number): number {
+  const res = run(
+    `DELETE FROM app_settings
+     WHERE user_id = ? AND setting_key LIKE 'progress:%'`,
+    [userId]
+  );
+  return res.changes;
 }
 
 export function listHighscores(puzzleId?: number): HighscoreEntry[] {

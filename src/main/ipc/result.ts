@@ -4,9 +4,12 @@ import * as resultService from '../services/resultService';
 import * as statsService from '../services/statsService';
 import { listHighscores } from '../db/queries';
 import type {
+  BestForPuzzle,
   ExportResult,
   HighscoreList,
   SaveResult,
+  SolveHistory,
+  StreakInfo,
   UserStats
 } from '@shared/types';
 
@@ -60,6 +63,45 @@ export function registerResultIpc(): void {
             { difficulty: 3, solved: 0, bestTimeSeconds: null, avgTimeSeconds: null }
           ]
         };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'result:bestForPuzzle',
+    async (
+      _e,
+      input: { userId: number; puzzleId: number }
+    ): Promise<{ best: BestForPuzzle | null }> => {
+      try {
+        return resultService.bestForPuzzle(input.userId, input.puzzleId);
+      } catch {
+        return { best: null };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'result:streak',
+    async (_e, input: { userId: number }): Promise<StreakInfo> => {
+      try {
+        return resultService.streak(input.userId);
+      } catch {
+        return { solvedToday: 0, currentStreak: 0, longestStreak: 0 };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'result:history',
+    async (
+      _e,
+      input: { userId: number; limit?: number }
+    ): Promise<SolveHistory> => {
+      try {
+        return resultService.history(input.userId, input.limit);
+      } catch {
+        return { entries: [] };
       }
     }
   );

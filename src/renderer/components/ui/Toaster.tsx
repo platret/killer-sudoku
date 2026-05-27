@@ -1,16 +1,19 @@
 import { Toaster as SonnerToaster, toast } from 'sonner';
+import { useApp } from '@/lib/store';
 
 export function Toaster(): JSX.Element {
+  const theme = useApp((s) => s.theme);
+  const light = theme === 'light';
   return (
     <SonnerToaster
       position="bottom-right"
-      theme="dark"
+      theme={light ? 'light' : 'dark'}
       richColors
       toastOptions={{
         style: {
-          background: '#211d16',
-          border: '1px solid #ffffff14',
-          color: '#f3eee2'
+          background: light ? '#fffbf2' : '#211d16',
+          border: light ? '1px solid rgba(38,25,14,0.10)' : '1px solid rgba(255,255,255,0.08)',
+          color: light ? '#261910' : '#f3eee2'
         }
       }}
     />

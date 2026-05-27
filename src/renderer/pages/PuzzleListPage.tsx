@@ -1,7 +1,24 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import { BarChart3, Dices, Plus, Play, Trash2, Trophy, User, LogOut } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  BarChart3,
+  CalendarCheck2,
+  Clock,
+  Dices,
+  Flame,
+  LogOut,
+  Play,
+  Plus,
+  Search,
+  Trash2,
+  Trophy,
+  User,
+  X
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Modal } from '@/components/ui/Modal';
@@ -10,8 +27,8 @@ import { HomeBackdrop } from '@/components/animations/HomeBackdrop';
 import { toast } from '@/components/ui/Toaster';
 import { useApp } from '@/lib/store';
 import { api } from '@/lib/ipc';
-import { difficultyLabel } from '@/lib/utils';
-import type { Difficulty, PuzzleSummary } from '@shared/types';
+import { difficultyLabel, formatTime } from '@/lib/utils';
+import type { Difficulty, PuzzleSummary, StreakInfo } from '@shared/types';
 
 const DIFFICULTY_STYLES: Record<Difficulty, { ring: string; chip: string; dot: string }> = {
   1: {
@@ -31,15 +48,78 @@ const DIFFICULTY_STYLES: Record<Difficulty, { ring: string; chip: string; dot: s
   }
 };
 
+type SortKey = 'newest' | 'oldest' | 'hardest' | 'easiest' | 'fastest';
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'hardest', label: 'Hardest first' },
+  { value: 'easiest', label: 'Easiest first' },
+  { value: 'fastest', label: 'Fastest solved' }
+];
+
+const FILTER_SETTING_KEY = 'puzzleList.filter';
+const SORT_SETTING_KEY = 'puzzleList.sort';
+const ONBOARDING_SEEN_KEY = 'onboarding.surpriseSeen';
+
+interface BestRow {
+  puzzleId: number;
+  bestSeconds: number;
+}
+
 export function PuzzleListPage(): JSX.Element {
   const setView = useApp((s) => s.setView);
   const setUser = useApp((s) => s.setUser);
   const user = useApp((s) => s.user);
+  const defaultDifficulty = useApp((s) => s.defaultDifficulty);
+
   const [puzzles, setPuzzles] = useState<PuzzleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | Difficulty>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('newest');
+  const [search, setSearch] = useState('');
   const [pendingDelete, setPendingDelete] = useState<PuzzleSummary | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [streak, setStreak] = useState<StreakInfo | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [bestSeconds, setBestSeconds] = useState<Map<number, number>>(new Map());
+  const surpriseRef = useRef<HTMLButtonElement | null>(null);
+  const settingsHydrated = useRef(false);
+
+  // Hydrate filter/sort from settings on first mount.
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      api().settings.get({ key: FILTER_SETTING_KEY }),
+      api().settings.get({ key: SORT_SETTING_KEY })
+    ])
+      .then(([f, s]) => {
+        if (cancelled) return;
+        if (f.value === '1' || f.value === '2' || f.value === '3') {
+          setFilter(Number(f.value) as Difficulty);
+        } else if (f.value === 'all') {
+          setFilter('all');
+        }
+        if (s.value && SORT_OPTIONS.some((o) => o.value === s.value)) {
+          setSortKey(s.value as SortKey);
+        }
+      })
+      .finally(() => {
+        settingsHydrated.current = true;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Persist filter & sort after they change (skip the hydrate roundtrip).
+  useEffect(() => {
+    if (!settingsHydrated.current) return;
+    void api().settings.set({ key: FILTER_SETTING_KEY, value: String(filter) });
+  }, [filter]);
+  useEffect(() => {
+    if (!settingsHydrated.current) return;
+    void api().settings.set({ key: SORT_SETTING_KEY, value: sortKey });
+  }, [sortKey]);
 
   const load = async (): Promise<void> => {
     setLoading(true);
@@ -55,11 +135,67 @@ export function PuzzleListPage(): JSX.Element {
     void load();
   }, [filter]);
 
+  // Fetch user's best time per puzzle for the "fastest" sort.
+  useEffect(() => {
+    if (!user || puzzles.length === 0) {
+      setBestSeconds(new Map());
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      puzzles.map((p) =>
+        api()
+          .result.bestForPuzzle({ userId: user.id, puzzleId: p.id })
+          .then((r) => ({ puzzleId: p.id, best: r.best }))
+          .catch(() => ({ puzzleId: p.id, best: null }))
+      )
+    ).then((rows) => {
+      if (cancelled) return;
+      const map = new Map<number, number>();
+      for (const row of rows) {
+        if (row.best) map.set(row.puzzleId, row.best.timeSeconds);
+      }
+      setBestSeconds(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [puzzles, user]);
+
+  // Streak widget data.
+  useEffect(() => {
+    if (!user) return;
+    void api().result.streak({ userId: user.id }).then(setStreak).catch(() => setStreak(null));
+  }, [user]);
+
   useEffect(() => {
     const handler = (): void => void surpriseMe();
     window.addEventListener('surprise:me', handler);
     return () => window.removeEventListener('surprise:me', handler);
   });
+
+  // First-time onboarding: when puzzle list is empty AND the user hasn't dismissed it.
+  useEffect(() => {
+    if (loading) return;
+    if (puzzles.length !== 0) return;
+    void api()
+      .settings.get({ key: ONBOARDING_SEEN_KEY })
+      .then((r) => {
+        if (r.value !== '1') {
+          // small delay so the UI settles before the tooltip animates in
+          window.setTimeout(() => setShowOnboarding(true), 320);
+        }
+      });
+  }, [loading, puzzles.length]);
+
+  const dismissOnboarding = async (): Promise<void> => {
+    setShowOnboarding(false);
+    try {
+      await api().settings.set({ key: ONBOARDING_SEEN_KEY, value: '1' });
+    } catch {
+      /* it's just a hint, OK to skip persist */
+    }
+  };
 
   const onDelete = async (): Promise<void> => {
     if (!pendingDelete || !user) return;
@@ -81,8 +217,10 @@ export function PuzzleListPage(): JSX.Element {
 
   const surpriseMe = async (): Promise<void> => {
     if (!user || generating) return;
-    const target: Difficulty = filter === 'all' ? 2 : filter;
+    // Honour filter first, then the user's preferred default.
+    const target: Difficulty = filter === 'all' ? defaultDifficulty : filter;
     setGenerating(true);
+    void dismissOnboarding();
     const t0 = Date.now();
     try {
       const gen = await api().puzzle.generate({ difficulty: target });
@@ -109,11 +247,45 @@ export function PuzzleListPage(): JSX.Element {
     }
   };
 
+  const filteredSorted = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const filtered =
+      term.length === 0
+        ? puzzles
+        : puzzles.filter((p) => p.name.toLowerCase().includes(term));
+
+    const sorted = filtered.slice();
+    sorted.sort((a, b) => {
+      switch (sortKey) {
+        case 'newest':
+          return b.createdAt.localeCompare(a.createdAt) || b.id - a.id;
+        case 'oldest':
+          return a.createdAt.localeCompare(b.createdAt) || a.id - b.id;
+        case 'hardest':
+          return b.difficulty - a.difficulty || b.createdAt.localeCompare(a.createdAt);
+        case 'easiest':
+          return a.difficulty - b.difficulty || b.createdAt.localeCompare(a.createdAt);
+        case 'fastest': {
+          const aBest = bestSeconds.get(a.id);
+          const bBest = bestSeconds.get(b.id);
+          // Unsolved puzzles sort to the bottom.
+          if (aBest === undefined && bBest === undefined) {
+            return b.createdAt.localeCompare(a.createdAt);
+          }
+          if (aBest === undefined) return 1;
+          if (bBest === undefined) return -1;
+          return aBest - bBest;
+        }
+      }
+    });
+    return sorted;
+  }, [puzzles, search, sortKey, bestSeconds]);
+
   return (
     <main className="relative flex-1 overflow-y-auto">
       <HomeBackdrop />
       <div className="relative z-10 px-10 py-10 max-w-7xl mx-auto">
-        <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>
             <p className="text-[10px] uppercase tracking-[0.24em] text-accent mb-2 inline-flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-glow" />
@@ -148,7 +320,13 @@ export function PuzzleListPage(): JSX.Element {
               <Trophy className="h-4 w-4" />
               Highscores
             </Button>
-            <Button variant="secondary" onClick={() => void surpriseMe()} disabled={generating}>
+            <Button
+              ref={surpriseRef}
+              variant="secondary"
+              onClick={() => void surpriseMe()}
+              disabled={generating}
+              className="relative"
+            >
               <Dices className="h-4 w-4" />
               {generating ? 'Generating…' : 'Surprise me'}
             </Button>
@@ -162,6 +340,46 @@ export function PuzzleListPage(): JSX.Element {
           </div>
         </div>
 
+        {/* Streak / daily widget */}
+        {streak ? <StreakStrip info={streak} /> : null}
+
+        {/* Search & sort row */}
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search puzzles by name…"
+              className="pl-9 pr-9"
+              aria-label="Search puzzles"
+            />
+            {search ? (
+              <button
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 inline-flex items-center justify-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-elevated focus-ring"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+          <Select
+            aria-label="Sort puzzles"
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            options={SORT_OPTIONS}
+          />
+          <span className="text-xs text-ink-muted ml-1 inline-flex items-center gap-1.5">
+            {sortKey === 'oldest' || sortKey === 'easiest' ? (
+              <ArrowUpAZ className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowDownAZ className="h-3.5 w-3.5" />
+            )}
+            {filteredSorted.length} of {puzzles.length}
+          </span>
+        </div>
+
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -171,11 +389,27 @@ export function PuzzleListPage(): JSX.Element {
         ) : puzzles.length === 0 ? (
           <EmptyState
             title="No puzzles yet"
-            description="Be the first to design one. The solver guarantees a unique solution before publishing."
+            description="Try 'Surprise me' to generate one in seconds, or design your own from scratch."
             action={
-              <Button onClick={() => setView({ kind: 'create' })}>
-                <Plus className="h-4 w-4" />
-                Create puzzle
+              <div className="flex flex-wrap items-center gap-2">
+                <Button onClick={() => void surpriseMe()} disabled={generating} className="shadow-glow">
+                  <Dices className="h-4 w-4" />
+                  {generating ? 'Generating…' : 'Surprise me'}
+                </Button>
+                <Button variant="secondary" onClick={() => setView({ kind: 'create' })}>
+                  <Plus className="h-4 w-4" />
+                  Design one
+                </Button>
+              </div>
+            }
+          />
+        ) : filteredSorted.length === 0 ? (
+          <EmptyState
+            title="No matches"
+            description={`Nothing in this list matches "${search}". Clear the search to see everything.`}
+            action={
+              <Button variant="secondary" onClick={() => setSearch('')}>
+                <X className="h-4 w-4" /> Clear search
               </Button>
             }
           />
@@ -186,8 +420,9 @@ export function PuzzleListPage(): JSX.Element {
             variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
           >
-            {puzzles.map((p) => {
+            {filteredSorted.map((p) => {
               const style = DIFFICULTY_STYLES[p.difficulty];
+              const best = bestSeconds.get(p.id);
               return (
                 <motion.li
                   key={p.id}
@@ -203,10 +438,16 @@ export function PuzzleListPage(): JSX.Element {
                   <div className="relative flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h3 className="font-semibold text-ink truncate text-lg">{p.name}</h3>
-                      <p className="text-xs text-ink-muted inline-flex items-center gap-1.5 mt-1">
+                      <p className="text-xs text-ink-muted flex items-center gap-1.5 mt-1">
                         <User className="h-3 w-3" />
                         {p.createdByName}
                       </p>
+                      {best !== undefined ? (
+                        <p className="text-[10px] text-cyan-glow flex items-center gap-1.5 mt-3 uppercase tracking-wider">
+                          <Clock className="h-3 w-3" />
+                          Best {formatTime(best)}
+                        </p>
+                      ) : null}
                     </div>
                     <span
                       className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border inline-flex items-center gap-1.5 ${style.chip}`}
@@ -254,6 +495,7 @@ export function PuzzleListPage(): JSX.Element {
         open={pendingDelete !== null}
         onClose={() => setPendingDelete(null)}
         title="Delete this puzzle?"
+        dismissible={false}
       >
         <p className="text-sm text-ink-muted mb-6">
           <span className="text-ink font-medium">{pendingDelete?.name}</span> and every score for it
@@ -269,6 +511,125 @@ export function PuzzleListPage(): JSX.Element {
           </Button>
         </div>
       </Modal>
+
+      <AnimatePresence>
+        {showOnboarding && surpriseRef.current ? (
+          <OnboardingTooltip
+            anchor={surpriseRef.current}
+            onDismiss={() => void dismissOnboarding()}
+          />
+        ) : null}
+      </AnimatePresence>
     </main>
+  );
+}
+
+function StreakStrip({ info }: { info: StreakInfo }): JSX.Element {
+  const noActivity =
+    info.solvedToday === 0 && info.currentStreak === 0 && info.longestStreak === 0;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-2"
+    >
+      <div className="rounded-lg border border-accent/30 bg-accent/[0.06] backdrop-blur-md px-4 py-3 flex items-center gap-3">
+        <CalendarCheck2 className="h-5 w-5 text-accent shrink-0" />
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-ink-muted">Solved today</p>
+          <p className="text-xl font-mono tabular-num text-ink leading-tight">{info.solvedToday}</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-magenta-glow/30 bg-magenta-glow/[0.06] backdrop-blur-md px-4 py-3 flex items-center gap-3">
+        <Flame className="h-5 w-5 text-magenta-glow shrink-0" />
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-ink-muted">Current streak</p>
+          <p className="text-xl font-mono tabular-num text-ink leading-tight">
+            {info.currentStreak} day{info.currentStreak === 1 ? '' : 's'}
+          </p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-cyan-glow/30 bg-cyan-glow/[0.06] backdrop-blur-md px-4 py-3 flex items-center gap-3">
+        <Trophy className="h-5 w-5 text-cyan-glow shrink-0" />
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-ink-muted">Longest streak</p>
+          <p className="text-xl font-mono tabular-num text-ink leading-tight">
+            {info.longestStreak} day{info.longestStreak === 1 ? '' : 's'}
+          </p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-line/60 bg-bg-panel/55 backdrop-blur-md px-4 py-3 flex items-center gap-3">
+        <Dices className="h-5 w-5 text-ink-muted shrink-0" />
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-ink-muted">
+            {noActivity ? 'Get started' : 'Keep going'}
+          </p>
+          <p className="text-xs text-ink leading-tight">
+            {noActivity ? 'Hit Surprise me to begin' : 'Solve one more to extend'}
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function OnboardingTooltip({
+  anchor,
+  onDismiss
+}: {
+  anchor: HTMLElement;
+  onDismiss: () => void;
+}): JSX.Element {
+  const rect = anchor.getBoundingClientRect();
+  // Position the tooltip card just below the Surprise button.
+  const top = rect.bottom + 14;
+  const left = Math.max(16, rect.right - 320);
+  return (
+    <motion.div
+      role="dialog"
+      aria-label="Quick start"
+      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -6, scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+      style={{
+        position: 'fixed',
+        top,
+        left,
+        width: 320,
+        zIndex: 70
+      }}
+      className="rounded-xl border border-accent/50 bg-bg-elevated/95 backdrop-blur-md shadow-elev p-4"
+    >
+      {/* Arrow pointing to the Surprise button */}
+      <motion.div
+        animate={{ y: [0, -4, 0] }}
+        transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+        className="absolute -top-2 right-8 h-3 w-3 rotate-45 bg-bg-elevated border-l border-t border-accent/50"
+        aria-hidden
+      />
+      <div className="flex items-start gap-3">
+        <motion.div
+          animate={{ rotate: [0, -6, 6, 0] }}
+          transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
+          className="h-9 w-9 rounded-lg bg-accent/15 text-accent inline-flex items-center justify-center shrink-0"
+        >
+          <Dices className="h-5 w-5" />
+        </motion.div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-ink mb-1">Start with a generated puzzle</p>
+          <p className="text-xs text-ink-muted leading-relaxed">
+            <span className="text-accent font-medium">Surprise me</span> builds a guaranteed-unique
+            Killer Sudoku in seconds. You don't have to design one from scratch.
+          </p>
+          <div className="flex justify-end mt-3 gap-2">
+            <Button size="sm" variant="ghost" onClick={onDismiss}>
+              Got it
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 }

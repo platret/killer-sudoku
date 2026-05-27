@@ -24,7 +24,7 @@ export function DbErrorScreen({ error }: Props): JSX.Element {
         </div>
 
         <div className="mt-6 space-y-4">
-          <div className="rounded-md border border-line bg-bg-surface p-4">
+          <div className="rounded-md border border-line/10 bg-bg-surface p-4">
             <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-ink-muted mb-2">
               <Database className="h-3.5 w-3.5" />
               <span>Error</span>
@@ -32,7 +32,7 @@ export function DbErrorScreen({ error }: Props): JSX.Element {
             <p className="text-sm text-ink font-mono break-all">{error}</p>
           </div>
 
-          <div className="rounded-md border border-line bg-bg-surface p-4 text-sm text-ink-muted space-y-2">
+          <div className="rounded-md border border-line/10 bg-bg-surface p-4 text-sm text-ink-muted space-y-2">
             <p className="text-ink font-medium">Fix it</p>
             <p>1. Ensure your user can write to the app data directory.</p>
             <p>2. Close any other instance of KillerSudoku that may be holding the file.</p>

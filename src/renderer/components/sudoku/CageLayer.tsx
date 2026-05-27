@@ -67,7 +67,7 @@ export function CageLayer({ cages, cellSize, highlightCageIdx }: Props): JSX.Ele
     >
       {data.map((c, i) => {
         const highlight = highlightCageIdx === i;
-        const stroke = highlight ? '#ffb845' : '#a39a8a';
+        const stroke = highlight ? '#ffb845' : 'rgb(var(--ink-muted))';
         return (
           <g key={i}>
             {c.edges.map((e, j) => (

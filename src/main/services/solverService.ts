@@ -1,4 +1,4 @@
-import type { CageInput, CheckResult, Grid } from '@shared/types';
+import type { CageInput, CheckResult, Difficulty, Grid } from '@shared/types';
 
 export const GRID_SIZE = 81;
 export const ROW = (i: number): number => Math.floor(i / 9);
@@ -307,6 +307,24 @@ export function hint(
   return { cellIndex: target, value: solution[target] };
 }
 
-export function scoreOf(timeSeconds: number, hintsUsed: number): number {
-  return Math.max(0, 10000 - timeSeconds * 5 - hintsUsed * 500);
+/**
+ * Multiplicative score so heavy hint use can't crater you to 0.
+ *   score = base * timeMul * hintMul
+ * Base scales with difficulty (harder = more points possible).
+ * timeMul decays linearly toward a 0.20 floor over twice the par time.
+ * hintMul drops 5% per hint, floored at 0.05 (so even an all-hint solve
+ * still rewards you for finishing the grid).
+ */
+export function scoreOf(
+  timeSeconds: number,
+  hintsUsed: number,
+  difficulty: Difficulty = 2
+): number {
+  const BASE: Record<Difficulty, number> = { 1: 4000, 2: 8000, 3: 14000 };
+  const PAR_SECONDS: Record<Difficulty, number> = { 1: 360, 2: 720, 3: 1500 };
+  const t = Math.max(0, timeSeconds);
+  const h = Math.max(0, hintsUsed);
+  const timeMul = Math.max(0.2, 1 - t / (PAR_SECONDS[difficulty] * 2));
+  const hintMul = Math.max(0.05, 1 - h * 0.05);
+  return Math.round(BASE[difficulty] * timeMul * hintMul);
 }

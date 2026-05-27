@@ -10,12 +10,16 @@ import {
   ListChecks,
   LogOut,
   Plus,
+  Settings as SettingsIcon,
   Sparkles,
-  Trophy
+  Trophy,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { useApp } from '@/lib/store';
 import { api } from '@/lib/ipc';
-import { playSound } from '@/lib/sounds';
+import { playSound, setSoundMuted } from '@/lib/sounds';
+import { toast } from '@/components/ui/Toaster';
 
 interface ItemSpec {
   id: string;
@@ -34,6 +38,20 @@ export function CommandPalette(): JSX.Element {
   const setHelpOpen = useApp((s) => s.setHelpOpen);
   const user = useApp((s) => s.user);
   const setUser = useApp((s) => s.setUser);
+  const soundsMuted = useApp((s) => s.soundsMuted);
+  const setSoundsMuted = useApp((s) => s.setSoundsMuted);
+
+  const toggleSounds = async (): Promise<void> => {
+    const next = !soundsMuted;
+    setSoundsMuted(next);
+    setSoundMuted(next);
+    try {
+      await api().settings.set({ key: 'soundsMuted', value: next ? '1' : '0' });
+    } catch {
+      /* still applied in-memory */
+    }
+    toast.message(next ? 'Sound effects muted' : 'Sound effects on');
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
@@ -97,6 +115,19 @@ export function CommandPalette(): JSX.Element {
       onSelect: () => { setView({ kind: 'start' }); close(); }
     },
     {
+      id: 'nav-settings',
+      label: 'Settings',
+      icon: <SettingsIcon className="h-4 w-4" />,
+      onSelect: () => { setView({ kind: 'settings' }); close(); },
+      show: !!user
+    },
+    {
+      id: 'toggle-sound',
+      label: soundsMuted ? 'Unmute sound effects' : 'Toggle sound effects (mute)',
+      icon: soundsMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />,
+      onSelect: () => { void toggleSounds(); close(); }
+    },
+    {
       id: 'help',
       label: 'Keyboard shortcuts',
       icon: <HelpCircle className="h-4 w-4" />,
@@ -153,7 +184,7 @@ export function CommandPalette(): JSX.Element {
             <Command label="Command palette" className="text-ink">
               <Command.Input
                 placeholder="Type a command…"
-                className="w-full h-12 bg-transparent px-4 text-sm outline-none border-b border-line placeholder:text-ink-dim"
+                className="w-full h-12 bg-transparent px-4 text-sm outline-none border-b border-line/10 placeholder:text-ink-dim"
               />
               <Command.List className="max-h-80 overflow-y-auto p-1">
                 <Command.Empty className="p-4 text-sm text-ink-muted">No matches.</Command.Empty>
@@ -172,7 +203,7 @@ export function CommandPalette(): JSX.Element {
                       <span className="text-ink-muted">{item.icon}</span>
                       <span className="flex-1">{item.label}</span>
                       {item.shortcut ? (
-                        <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-elevated border border-line text-ink-muted">
+                        <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-elevated border border-line/10 text-ink-muted">
                           {item.shortcut}
                         </kbd>
                       ) : null}

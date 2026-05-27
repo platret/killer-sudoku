@@ -44,7 +44,8 @@ const mocks = vi.hoisted(() => {
       createdBy: p.createdBy,
       createdByName: 'tester',
       createdAt: '2026-01-01T00:00:00Z',
-      cages: p.cages.map((c, i) => ({ id: i + 1, targetSum: c.targetSum, cells: c.cells }))
+      cages: p.cages.map((c, i) => ({ id: i + 1, targetSum: c.targetSum, cells: c.cells })),
+      givens: Array(81).fill(null)
     };
   });
 

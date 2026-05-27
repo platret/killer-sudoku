@@ -10,7 +10,9 @@ interface Props {
   peer: boolean;
   sameValue: boolean;
   error: boolean;
+  errorVersion?: number;
   hinted: boolean;
+  given?: boolean;
   cellSize: number;
   onClick: (index: number) => void;
   readOnly?: boolean;
@@ -19,10 +21,10 @@ interface Props {
 function borders(index: number): string {
   const r = Math.floor(index / 9);
   const c = index % 9;
-  const top = r % 3 === 0 ? 'border-t-2 border-t-line-strong' : 'border-t border-t-line';
-  const left = c % 3 === 0 ? 'border-l-2 border-l-line-strong' : 'border-l border-l-line';
-  const right = c === 8 ? 'border-r-2 border-r-line-strong' : '';
-  const bottom = r === 8 ? 'border-b-2 border-b-line-strong' : '';
+  const top = r % 3 === 0 ? 'border-t-2 border-t-line-strong/20' : 'border-t border-t-line/10';
+  const left = c % 3 === 0 ? 'border-l-2 border-l-line-strong/20' : 'border-l border-l-line/10';
+  const right = c === 8 ? 'border-r-2 border-r-line-strong/20' : '';
+  const bottom = r === 8 ? 'border-b-2 border-b-line-strong/20' : '';
   return `${top} ${left} ${right} ${bottom}`;
 }
 
@@ -34,13 +36,18 @@ export function Cell({
   peer,
   sameValue,
   error,
+  errorVersion = 0,
   hinted,
+  given = false,
   cellSize,
   onClick,
   readOnly
 }: Props): JSX.Element {
+  // `errorVersion` bumps every time a fresh conflict lands on this cell so the
+  // shake animation restarts even when `error` was already true.
   return (
     <button
+      key={error ? `err-${errorVersion}` : 'ok'}
       role="gridcell"
       aria-label={`Cell row ${Math.floor(index / 9) + 1} column ${(index % 9) + 1}`}
       aria-selected={selected}
@@ -68,8 +75,15 @@ export function Cell({
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 380, damping: 22 }}
           className={cn(
-            'font-semibold font-mono tabular-num',
-            error ? 'text-danger' : hinted ? 'text-accent' : 'text-ink'
+            'font-mono tabular-num',
+            given ? 'font-extrabold drop-shadow-[0_0_2px_rgba(255,255,255,0.25)]' : 'font-medium',
+            error
+              ? 'text-danger'
+              : given
+                ? 'text-ink'
+                : hinted
+                  ? 'text-accent'
+                  : 'text-cyan-glow'
           )}
           style={{ fontSize: Math.floor(cellSize * 0.5) }}
         >

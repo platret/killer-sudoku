@@ -4,7 +4,7 @@ import {
   insertPuzzle,
   listPuzzles
 } from '@main/db/queries';
-import { cagesCoverGridOnce, validatePuzzle } from './solverService';
+import { cagesCoverGridOnce, solve, validatePuzzle } from './solverService';
 import type {
   CageInput,
   CreateResult,
@@ -12,8 +12,55 @@ import type {
   Difficulty,
   GetResult,
   ListResult,
+  Puzzle,
   ValidateResult
 } from '@shared/types';
+
+const GIVENS_PER_DIFFICULTY: Record<Difficulty, number> = {
+  1: 36,
+  2: 20,
+  3: 0
+};
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pickGivens(
+  solution: number[],
+  count: number,
+  seed: number
+): (number | null)[] {
+  const cells = Array.from({ length: 81 }, (_, i) => i);
+  const rand = mulberry32(seed);
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = cells[i];
+    cells[i] = cells[j];
+    cells[j] = tmp;
+  }
+  const chosen = new Set(cells.slice(0, count));
+  return Array.from({ length: 81 }, (_, i) => (chosen.has(i) ? solution[i] : null));
+}
+
+function attachGivens(puzzle: Puzzle): Puzzle {
+  const count = GIVENS_PER_DIFFICULTY[puzzle.difficulty] ?? 0;
+  if (count === 0) {
+    return { ...puzzle, givens: Array(81).fill(null) };
+  }
+  const sol = solve(puzzle.cages, undefined);
+  if (!sol) {
+    return { ...puzzle, givens: Array(81).fill(null) };
+  }
+  return { ...puzzle, givens: pickGivens(sol, count, puzzle.id) };
+}
 
 function validateCageStructure(cages: CageInput[]): string | null {
   if (!Array.isArray(cages) || cages.length === 0) return 'Provide at least one cage';
@@ -72,7 +119,9 @@ export function list(difficulty?: Difficulty): ListResult {
 
 export function get(id: number): GetResult {
   if (!Number.isInteger(id) || id <= 0) return { puzzle: null };
-  return { puzzle: getPuzzle(id) };
+  const base = getPuzzle(id);
+  if (!base) return { puzzle: null };
+  return { puzzle: attachGivens(base as Puzzle) };
 }
 
 export function remove(puzzleId: number, userId: number): DeleteResult {
