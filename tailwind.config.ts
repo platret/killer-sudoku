@@ -7,51 +7,53 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          base: '#0a0612',
-          panel: '#15102a',
-          surface: '#1a1535',
-          elevated: '#221c44'
+          base: '#0c0b09',
+          panel: '#16140f',
+          surface: '#1d1a14',
+          elevated: '#211d16'
         },
         line: {
-          DEFAULT: '#2a2444',
-          strong: '#3a3458'
+          DEFAULT: '#ffffff14',
+          strong: '#ffffff26'
         },
         ink: {
-          DEFAULT: '#fafafa',
-          muted: '#a8a4c4',
-          dim: '#6b6790'
+          DEFAULT: '#f3eee2',
+          muted: '#a39a8a',
+          dim: '#80776a'
         },
         accent: {
-          DEFAULT: '#a855f7',
-          hover: '#c084fc',
-          deep: '#581c87'
+          DEFAULT: '#f4a72c',
+          hover: '#ffb845',
+          deep: '#1a1206',
+          foreground: '#1a1206'
         },
         cyan: {
-          glow: '#06b6d4'
+          glow: '#d97757'
         },
         magenta: {
-          glow: '#ec4899'
+          glow: '#c97d4a'
         },
-        danger: '#f43f5e',
-        success: '#34d399',
-        warning: '#fbbf24'
+        danger: '#e5484d',
+        success: '#4cae6a',
+        warning: '#f4a72c'
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['SoraVariable', 'Sora', 'system-ui', 'sans-serif'],
+        display: ['Space Grotesk Variable', 'Space Grotesk', 'sans-serif'],
         mono: ['JetBrains Mono', 'Consolas', 'monospace']
       },
       boxShadow: {
-        glow: '0 0 32px rgba(168, 85, 247, 0.35)',
-        glowCyan: '0 0 32px rgba(6, 182, 212, 0.3)',
-        glowPink: '0 0 32px rgba(236, 72, 153, 0.3)',
+        glow: '0 0 32px rgba(244, 167, 44, 0.35)',
+        glowCyan: '0 0 32px rgba(217, 119, 87, 0.35)',
+        glowPink: '0 0 32px rgba(201, 125, 74, 0.35)',
         elev: '0 12px 32px rgba(0,0,0,0.65)',
         card: '0 1px 0 rgba(255,255,255,0.03) inset, 0 16px 40px rgba(0,0,0,0.4)'
       },
       backgroundImage: {
-        'accent-gradient': 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #06b6d4 100%)',
-        'hero-gradient': 'linear-gradient(120deg, #c084fc 0%, #f0abfc 35%, #67e8f9 100%)',
-        'card-sheen': 'linear-gradient(160deg, rgba(168,85,247,0.10) 0%, rgba(168,85,247,0) 60%)',
-        'dot-grid': 'radial-gradient(circle at 1px 1px, rgba(168,85,247,0.18) 1px, transparent 0)'
+        'accent-gradient': 'linear-gradient(135deg, #7a3e12 0%, #b5651d 50%, #f4a72c 100%)',
+        'hero-gradient': 'linear-gradient(120deg, #ffb845 0%, #f4a72c 35%, #f3eee2 100%)',
+        'card-sheen': 'linear-gradient(160deg, rgba(244,167,44,0.10) 0%, rgba(244,167,44,0) 60%)',
+        'dot-grid': 'radial-gradient(circle at 1px 1px, rgba(244,167,44,0.12) 1px, transparent 0)'
       },
       keyframes: {
         shake: {

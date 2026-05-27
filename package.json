@@ -18,6 +18,9 @@
     "db:seed": "electron-vite build && electron . --seed"
   },
   "dependencies": {
+    "@fontsource-variable/sora": "^5.2.8",
+    "@fontsource-variable/space-grotesk": "^5.2.10",
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "@paper-design/shaders-react": "^0.0.76",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.7.0",

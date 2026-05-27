@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/lib/store';
 import { api } from '@/lib/ipc';
+import { playSound } from '@/lib/sounds';
 
 interface ItemSpec {
   id: string;
@@ -44,6 +45,10 @@ export function CommandPalette(): JSX.Element {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [open, setOpen]);
+
+  useEffect(() => {
+    if (open) playSound.open();
+  }, [open]);
 
   const close = (): void => setOpen(false);
 
@@ -158,7 +163,10 @@ export function CommandPalette(): JSX.Element {
                     <Command.Item
                       key={item.id}
                       value={item.label}
-                      onSelect={item.onSelect}
+                      onSelect={() => {
+                        playSound.click();
+                        item.onSelect();
+                      }}
                       className="flex items-center gap-3 px-3 py-2 text-sm rounded-md cursor-pointer aria-selected:bg-accent/15 aria-selected:text-ink"
                     >
                       <span className="text-ink-muted">{item.icon}</span>

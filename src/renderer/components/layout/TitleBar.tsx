@@ -12,7 +12,7 @@ export function TitleBar(): JSX.Element {
           {Array.from({ length: 9 }).map((_, i) => (
             <span
               key={i}
-              className={i === 4 ? 'bg-accent shadow-[0_0_6px_rgba(168,85,247,0.8)]' : 'bg-line-strong'}
+              className={i === 4 ? 'bg-accent shadow-[0_0_6px_rgba(244,167,44,0.8)]' : 'bg-line-strong'}
               style={{ borderRadius: 1 }}
             />
           ))}

@@ -82,8 +82,8 @@ async function createWindow(): Promise<void> {
     y: bounds.y,
     width: bounds.width,
     height: bounds.height,
-    minWidth: 980,
-    minHeight: 680,
+    minWidth: 760,
+    minHeight: 560,
     show: false,
     frame: false,
     backgroundColor: '#0a0612',
@@ -92,7 +92,8 @@ async function createWindow(): Promise<void> {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      autoplayPolicy: 'no-user-gesture-required'
     }
   });
 

@@ -43,9 +43,9 @@ export function StartPage(): JSX.Element {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.6, ease: 'easeOut' }}
-          className="text-7xl md:text-8xl font-bold tracking-tight leading-[0.95] mb-6"
+          className="text-7xl md:text-8xl font-bold font-display tracking-tight leading-[0.95] mb-6"
         >
-          <span className="bg-hero-gradient bg-clip-text text-transparent drop-shadow-[0_0_36px_rgba(168,85,247,0.4)]">
+          <span className="bg-hero-gradient bg-clip-text text-transparent drop-shadow-[0_0_36px_rgba(244,167,44,0.4)]">
             Killer
           </span>
           <span className="text-ink">Sudoku</span>

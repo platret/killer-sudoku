@@ -12,7 +12,7 @@ function StaticFallback(): JSX.Element {
       className="absolute inset-0 pointer-events-none"
       style={{
         background:
-          'radial-gradient(60% 80% at 8% 0%, rgba(168,85,247,0.22) 0%, transparent 55%), radial-gradient(50% 70% at 95% 12%, rgba(6,182,212,0.18) 0%, transparent 55%), radial-gradient(40% 60% at 50% 100%, rgba(236,72,153,0.15) 0%, transparent 55%), #0a0612'
+          'radial-gradient(60% 80% at 8% 0%, rgba(244,167,44,0.18) 0%, transparent 55%), radial-gradient(50% 70% at 95% 12%, rgba(181,101,29,0.12) 0%, transparent 55%), radial-gradient(40% 60% at 50% 100%, rgba(122,62,18,0.10) 0%, transparent 55%), #0c0b09'
       }}
       aria-hidden
     />
@@ -57,7 +57,7 @@ export function HomeBackdrop({ intensity = 0.55 }: Props): JSX.Element {
         className="absolute inset-0"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 1px 1px, rgba(168,85,247,0.10) 1px, transparent 0)',
+            'radial-gradient(circle at 1px 1px, rgba(244,167,44,0.08) 1px, transparent 0)',
           backgroundSize: '24px 24px',
           maskImage:
             'radial-gradient(ellipse at 50% 0%, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)'
@@ -67,7 +67,7 @@ export function HomeBackdrop({ intensity = 0.55 }: Props): JSX.Element {
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(10,6,18,0.5) 0%, rgba(10,6,18,0.78) 70%, rgba(10,6,18,0.92) 100%)'
+            'linear-gradient(180deg, rgba(12,11,9,0.5) 0%, rgba(12,11,9,0.78) 70%, rgba(12,11,9,0.92) 100%)'
         }}
       />
     </div>
@@ -97,7 +97,7 @@ function ShaderInner({
   try {
     return (
       <MeshGradientLazy
-        colors={['#0a0612', '#3b1170', '#a855f7', '#0e7490', '#ec4899', '#0a0612']}
+        colors={['#0c0b09', '#7a3e12', '#b5651d', '#f4a72c', '#7a3e12', '#0c0b09']}
         distortion={0.7}
         swirl={0.35}
         speed={0.25}

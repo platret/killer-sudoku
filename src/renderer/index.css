@@ -1,3 +1,7 @@
+@import '@fontsource-variable/space-grotesk/index.css';
+@import '@fontsource-variable/sora/index.css';
+@import '@fontsource/jetbrains-mono/index.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,11 +12,11 @@
   }
   html, body, #root {
     height: 100%;
-    background: #0a0612;
+    background: #0c0b09;
     overflow: hidden;
   }
   body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'SoraVariable', 'Sora', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
@@ -28,11 +32,11 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: #2a241a;
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a3a3a;
+    background: #3a3225;
   }
 }
 

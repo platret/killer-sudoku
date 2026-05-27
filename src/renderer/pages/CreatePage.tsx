@@ -158,14 +158,15 @@ export function CreatePage(): JSX.Element {
       </button>
       <div className="flex items-end justify-between mb-8">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-glow mb-2 inline-flex items-center gap-2">
+          <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-glow mb-3 inline-flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-glow shadow-glowCyan" />
             Designer
           </p>
-          <h1 className="text-4xl font-bold tracking-tight leading-none">
+          <Plus className="h-11 w-11 text-cyan-glow mb-2 drop-shadow-[0_0_24px_rgba(217,119,87,0.5)]" />
+          <h1 className="text-4xl md:text-5xl font-bold font-display tracking-tight leading-none">
             <span className="bg-hero-gradient bg-clip-text text-transparent">Design a puzzle</span>
           </h1>
-          <p className="text-sm text-ink-muted mt-2 max-w-xl">
+          <p className="text-sm text-ink-muted mt-3 max-w-xl">
             Click cells to build a cage, enter its target sum, then add the cage. Every cell must
             belong to exactly one cage. Sums total 405. The solver enforces uniqueness before save.
           </p>
@@ -191,28 +192,28 @@ export function CreatePage(): JSX.Element {
               const col = i % 9;
               return (
                 <button
-                  key={i}
-                  onClick={() => onCellClick(i)}
-                  className={cn(
-                    'relative flex items-center justify-center text-[10px] font-mono text-ink-dim',
-                    'transition-colors',
-                    row % 3 === 0 ? 'border-t-2 border-t-line-strong' : 'border-t border-t-line',
-                    col % 3 === 0 ? 'border-l-2 border-l-line-strong' : 'border-l border-l-line',
-                    row === 8 ? 'border-b-2 border-b-line-strong' : '',
-                    col === 8 ? 'border-r-2 border-r-line-strong' : '',
-                    cIdx !== -1 ? 'cursor-default' : 'cursor-pointer hover:bg-bg-surface'
-                  )}
-                  style={{
-                    width: CELL,
-                    height: CELL,
-                    background:
-                      cIdx !== -1
-                        ? `hsla(${hueOf(cIdx)}, 65%, 50%, 0.18)`
-                        : inDraft
-                          ? 'rgba(59, 130, 246, 0.35)'
-                          : undefined
-                  }}
-                  aria-label={`Cell ${row + 1},${col + 1}`}
+                   key={i}
+                   onClick={() => onCellClick(i)}
+                   className={cn(
+                     'relative flex items-center justify-center text-[10px] font-mono text-ink-dim',
+                     'transition-colors',
+                     row % 3 === 0 ? 'border-t-2 border-t-line-strong' : 'border-t border-t-line',
+                     col % 3 === 0 ? 'border-l-2 border-l-line-strong' : 'border-l border-l-line',
+                     row === 8 ? 'border-b-2 border-b-line-strong' : '',
+                     col === 8 ? 'border-r-2 border-r-line-strong' : '',
+                     cIdx !== -1 ? 'cursor-default' : 'cursor-pointer hover:bg-bg-surface'
+                   )}
+                   style={{
+                     width: CELL,
+                     height: CELL,
+                     background:
+                       cIdx !== -1
+                         ? `hsla(${hueOf(cIdx)}, 65%, 50%, 0.18)`
+                         : inDraft
+                           ? 'rgba(244, 167, 44, 0.35)'
+                           : undefined
+                   }}
+                   aria-label={`Cell ${row + 1},${col + 1}`}
                 />
               );
             })}

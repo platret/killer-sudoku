@@ -1,6 +1,7 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { playSound } from '@/lib/sounds';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
 type Size = 'sm' | 'md' | 'lg' | 'icon';
@@ -9,10 +10,11 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'chi
   variant?: Variant;
   size?: Size;
   children?: ReactNode;
+  silent?: boolean;
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-accent text-white hover:bg-accent-hover',
+  primary: 'bg-accent text-accent-foreground hover:bg-accent-hover',
   secondary: 'bg-bg-surface text-ink hover:bg-bg-elevated border border-line',
   ghost: 'bg-transparent text-ink hover:bg-bg-surface',
   danger: 'bg-danger text-white hover:bg-red-500',
@@ -29,9 +31,14 @@ const sizes: Record<Size, string> = {
 const MotionButton = motion.button;
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant = 'primary', size = 'md', children, disabled, ...rest },
+  { className, variant = 'primary', size = 'md', children, disabled, silent, onClick, ...rest },
   ref
 ) {
+  const wrappedOnClick = (e: MouseEvent<HTMLButtonElement>): void => {
+    if (!disabled && !silent) playSound.click();
+    onClick?.(e);
+  };
+
   return (
     <MotionButton
       ref={ref}
@@ -46,6 +53,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         className
       )}
       disabled={disabled}
+      onClick={wrappedOnClick}
       {...(rest as React.ComponentProps<typeof MotionButton>)}
     >
       {children}

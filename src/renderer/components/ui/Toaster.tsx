@@ -8,9 +8,9 @@ export function Toaster(): JSX.Element {
       richColors
       toastOptions={{
         style: {
-          background: '#161616',
-          border: '1px solid #262626',
-          color: '#fafafa'
+          background: '#211d16',
+          border: '1px solid #ffffff14',
+          color: '#f3eee2'
         }
       }}
     />

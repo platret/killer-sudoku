@@ -46,8 +46,8 @@ function MetricCard({ icon, label, value, accent, animated }: MetricCardProps): 
         <div className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${a.bg} ${a.text} mb-3`}>
           {icon}
         </div>
-        <p className="text-[10px] uppercase tracking-wider text-ink-muted mb-1">{label}</p>
-        <p className={`text-3xl font-bold tabular-num ${a.text}`}>
+        <p className="text-[10px] uppercase tracking-wider font-display text-ink-muted mb-1">{label}</p>
+        <p className={`text-3xl font-bold font-mono tabular-num ${a.text}`}>
           {animated !== undefined ? <AnimatedNumber value={animated} duration={0.9} /> : value ?? '—'}
         </p>
       </div>
@@ -83,17 +83,17 @@ export function StatsPage(): JSX.Element {
 
         <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-glow mb-2 inline-flex items-center gap-2">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-glow mb-3 inline-flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-glow shadow-glowCyan" />
               Profile
             </p>
-            <h1 className="text-5xl font-bold tracking-tight leading-none inline-flex items-center gap-3">
-              <BarChart3 className="h-10 w-10 text-accent drop-shadow-[0_0_24px_rgba(168,85,247,0.4)]" />
-              <span className="bg-hero-gradient bg-clip-text text-transparent">
+            <BarChart3 className="h-12 w-12 text-accent mb-2 drop-shadow-[0_0_24px_rgba(244,167,44,0.4)]" />
+            <h1 className="text-5xl md:text-6xl font-bold font-display tracking-tight leading-none">
+              <span className="bg-hero-gradient bg-clip-text text-transparent break-all">
                 {user?.username}
               </span>
             </h1>
-            <p className="text-sm text-ink-muted mt-2">
+            <p className="text-sm text-ink-muted mt-3">
               How you have been solving on this machine.
             </p>
           </div>
@@ -162,7 +162,7 @@ export function StatsPage(): JSX.Element {
               className="rounded-xl border border-line/70 bg-bg-panel/55 backdrop-blur-md overflow-hidden"
             >
               <div className="px-5 py-4 border-b border-line/60 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-ink uppercase tracking-wider inline-flex items-center gap-2">
+                <h2 className="text-sm font-semibold font-display text-ink uppercase tracking-wider inline-flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-ink-muted" />
                   Per difficulty
                 </h2>

@@ -74,7 +74,7 @@ export function AuthPage(): JSX.Element {
           <ArrowLeft className="h-3 w-3" /> Back
         </button>
 
-        <h1 className="text-2xl font-bold text-ink mb-1">
+        <h1 className="text-2xl font-bold font-display text-ink mb-1">
           {mode === 'login' ? 'Sign in' : 'Create account'}
         </h1>
         <p className="text-sm text-ink-muted mb-6">

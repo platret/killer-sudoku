@@ -67,7 +67,7 @@ export function CageLayer({ cages, cellSize, highlightCageIdx }: Props): JSX.Ele
     >
       {data.map((c, i) => {
         const highlight = highlightCageIdx === i;
-        const stroke = highlight ? '#c084fc' : '#8b7fb8';
+        const stroke = highlight ? '#ffb845' : '#a39a8a';
         return (
           <g key={i}>
             {c.edges.map((e, j) => (
@@ -92,7 +92,7 @@ export function CageLayer({ cages, cellSize, highlightCageIdx }: Props): JSX.Ele
           y={c.headPos.y + 9}
           fontSize={10}
           fontFamily="JetBrains Mono, monospace"
-          fill="#c4b5fd"
+          fill="#f4a72c"
           fontWeight={700}
         >
           {c.target}

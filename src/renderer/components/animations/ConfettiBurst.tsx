@@ -12,7 +12,7 @@ interface Particle {
   shape: 'square' | 'rect' | 'circle';
 }
 
-const PALETTE = ['#a855f7', '#c084fc', '#06b6d4', '#67e8f9', '#ec4899', '#f0abfc', '#fbbf24'];
+const PALETTE = ['#f4a72c', '#ffb845', '#7a3e12', '#b5651d', '#4cae6a', '#e5484d'];
 
 interface Props {
   count?: number;

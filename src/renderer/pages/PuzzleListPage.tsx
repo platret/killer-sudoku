@@ -119,7 +119,7 @@ export function PuzzleListPage(): JSX.Element {
               <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-glow" />
               Signed in as {user?.username}
             </p>
-            <h1 className="text-5xl font-bold tracking-tight leading-none">
+            <h1 className="text-5xl font-bold font-display tracking-tight leading-none">
               <span className="bg-hero-gradient bg-clip-text text-transparent">Puzzles</span>
             </h1>
             <p className="text-sm text-ink-muted mt-2">

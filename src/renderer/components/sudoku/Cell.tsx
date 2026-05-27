@@ -68,7 +68,7 @@ export function Cell({
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 380, damping: 22 }}
           className={cn(
-            'font-semibold tabular-num',
+            'font-semibold font-mono tabular-num',
             error ? 'text-danger' : hinted ? 'text-accent' : 'text-ink'
           )}
           style={{ fontSize: Math.floor(cellSize * 0.5) }}

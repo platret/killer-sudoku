@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Download,
   Eye,
-  Film,
   Flag,
   Lightbulb,
   Redo2,
@@ -24,7 +23,8 @@ import { toast } from '@/components/ui/Toaster';
 import { useApp } from '@/lib/store';
 import { api, safeApi } from '@/lib/ipc';
 import { difficultyLabel, formatTime } from '@/lib/utils';
-import { exportPngBase64, exportWebmBase64, type CardData } from '@/lib/exportCard';
+import { exportPngBase64, type CardData } from '@/lib/exportCard';
+import { playSound } from '@/lib/sounds';
 import type { Cell as CellValue, Grid as GridValues, Puzzle } from '@shared/types';
 
 type Move =
@@ -70,8 +70,6 @@ export function SolvePage(): JSX.Element {
   const [forfeited, setForfeited] = useState(false);
   const [forfeitConfirm, setForfeitConfirm] = useState(false);
   const [exportingPng, setExportingPng] = useState(false);
-  const [exportingVideo, setExportingVideo] = useState(false);
-  const [videoProgress, setVideoProgress] = useState(0);
 
   const undoStack = useRef<Move[]>([]);
   const redoStack = useRef<Move[]>([]);
@@ -95,7 +93,6 @@ export function SolvePage(): JSX.Element {
     setCompleteOpen(false);
     setForfeited(false);
     setForfeitConfirm(false);
-    setVideoProgress(0);
 
     void api().puzzle.get({ id: puzzleId }).then(async (res) => {
       if (cancelled || !res.puzzle) {
@@ -222,9 +219,11 @@ export function SolvePage(): JSX.Element {
       if (selected === null || finalSeconds !== null) return;
       if (notesMode) {
         if (values[selected] !== null) return;
+        playSound.toggle();
         toggleNote(selected, n);
         return;
       }
+      playSound.place();
       setValueAt(selected, n, true);
     },
     [selected, notesMode, finalSeconds, values, toggleNote, setValueAt]
@@ -232,6 +231,7 @@ export function SolvePage(): JSX.Element {
 
   const clearCell = useCallback(() => {
     if (selected === null || finalSeconds !== null) return;
+    playSound.clear();
     setValueAt(selected, null, true);
   }, [selected, setValueAt, finalSeconds]);
 
@@ -254,9 +254,11 @@ export function SolvePage(): JSX.Element {
       selectedIndex: selected ?? undefined
     });
     if ('error' in res) {
+      playSound.error();
       toast.error(res.error);
       return;
     }
+    playSound.hint();
     setValueAt(res.cellIndex, res.value, true);
     setHintsUsed((n) => n + 1);
     setHinted((prev) => {
@@ -285,6 +287,7 @@ export function SolvePage(): JSX.Element {
       void api().settings.set({ key: progressKey(user.id, puzzle.id), value: '' });
     }
     setCompleteOpen(true);
+    playSound.forfeit();
     toast.message('Forfeited — no highscore saved');
   }, [puzzle, finalSeconds, startedAt, user]);
 
@@ -292,7 +295,10 @@ export function SolvePage(): JSX.Element {
     if (!puzzle || finalSeconds !== null) return;
     const id = window.setTimeout(async () => {
       const res = await api().solver.check({ cages: puzzle.cages, grid: values });
-      setErrors(new Set(res.errorCells));
+      setErrors((prev) => {
+        if (res.errorCells.length > 0 && prev.size === 0) playSound.error();
+        return new Set(res.errorCells);
+      });
       if (res.complete && res.correct && !completed.current) {
         completed.current = true;
         const seconds = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
@@ -310,6 +316,7 @@ export function SolvePage(): JSX.Element {
           setScore(Math.max(0, 10000 - seconds * 5 - hintsUsed * 500));
         }
         setCompleteOpen(true);
+        playSound.success();
       }
     }, 120);
     return () => clearTimeout(id);
@@ -449,55 +456,6 @@ export function SolvePage(): JSX.Element {
     }
   }, [cardData, exportingPng, stampedName]);
 
-  const downloadVideo = useCallback(async () => {
-    if (!cardData || exportingVideo) return;
-    const fileApi = safeApi()?.file;
-    if (!fileApi) {
-      toast.error('File save bridge unavailable — restart the app');
-      return;
-    }
-    if (typeof MediaRecorder === 'undefined') {
-      toast.error('Video recording unsupported in this build');
-      return;
-    }
-    setExportingVideo(true);
-    setVideoProgress(0);
-    let b64 = '';
-    try {
-      b64 = await exportWebmBase64(cardData, 4200, setVideoProgress);
-      if (!b64) throw new Error('Recorder returned empty video data');
-    } catch (err) {
-      console.error('[Video] record failed:', err);
-      toast.error(
-        `Could not record video (${err instanceof Error ? err.message : 'unknown error'})`
-      );
-      setExportingVideo(false);
-      setVideoProgress(0);
-      return;
-    }
-    try {
-      const res = await fileApi.save({
-        dataBase64: b64,
-        defaultName: stampedName('webm'),
-        filters: [{ name: 'WebM video', extensions: ['webm'] }]
-      });
-      if (res.success && res.path) {
-        toast.success(`Saved ${res.path.split('/').pop()}`);
-      } else if (res.error && res.error !== 'Cancelled') {
-        console.error('[Video] save failed:', res.error);
-        toast.error(`Video save failed: ${res.error}`);
-      }
-    } catch (err) {
-      console.error('[Video] ipc failed:', err);
-      toast.error(
-        `Video export failed (${err instanceof Error ? err.message : 'IPC error'})`
-      );
-    } finally {
-      setExportingVideo(false);
-      setVideoProgress(0);
-    }
-  }, [cardData, exportingVideo, stampedName]);
-
   const selectedCageInfo = useMemo(() => {
     if (!puzzle || selected === null) return null;
     const cageIdx = puzzle.cages.findIndex((c) => c.cells.includes(selected));
@@ -556,7 +514,7 @@ export function SolvePage(): JSX.Element {
             >
               <ArrowLeft className="h-3 w-3" /> Back
             </button>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold font-display tracking-tight">
               <span className="bg-hero-gradient bg-clip-text text-transparent">{puzzle.name}</span>
             </h1>
             <p className="text-xs text-ink-muted mt-1">
@@ -630,7 +588,7 @@ export function SolvePage(): JSX.Element {
                   className="rounded-xl border border-accent/30 bg-accent/[0.06] backdrop-blur-md p-4"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] uppercase tracking-wider text-accent font-semibold">
+                    <span className="text-[10px] uppercase tracking-wider font-display text-accent font-semibold">
                       Selected cage
                     </span>
                     <span className="text-[10px] tabular-num text-ink-muted">
@@ -639,19 +597,19 @@ export function SolvePage(): JSX.Element {
                   </div>
                   <div className="flex items-end justify-between gap-3">
                     <div>
-                      <p className="text-[10px] text-ink-muted uppercase tracking-wider">Target</p>
+                      <p className="text-[10px] text-ink-muted font-display uppercase tracking-wider">Target</p>
                       <p className="text-2xl font-mono tabular-num text-ink">
                         {selectedCageInfo.target}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-ink-muted uppercase tracking-wider">Filled</p>
+                      <p className="text-[10px] text-ink-muted font-display uppercase tracking-wider">Filled</p>
                       <p className="text-2xl font-mono tabular-num text-cyan-glow">
                         {selectedCageInfo.filled}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-ink-muted uppercase tracking-wider">
+                      <p className="text-[10px] text-ink-muted font-display uppercase tracking-wider">
                         {selectedCageInfo.remaining < 0
                           ? 'Over'
                           : selectedCageInfo.complete
@@ -733,43 +691,33 @@ export function SolvePage(): JSX.Element {
               {forfeited ? 'Solution revealed' : 'Final score'}
             </p>
             {forfeited ? (
-              <div className="text-5xl font-bold mb-4 text-danger drop-shadow-[0_0_24px_rgba(244,63,94,0.45)]">
+              <div className="text-5xl font-bold font-mono mb-4 text-danger drop-shadow-[0_0_24px_rgba(229,72,77,0.45)]">
                 Forfeited
               </div>
             ) : (
-              <div className="text-6xl font-bold mb-4 tabular-num bg-hero-gradient bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(168,85,247,0.45)]">
+              <div className="text-6xl font-bold font-mono mb-4 tabular-num bg-hero-gradient bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(244,167,44,0.45)]">
                 <AnimatedNumber value={score ?? 0} duration={1.1} />
               </div>
             )}
             <div className="grid grid-cols-2 gap-3 text-sm mb-5">
               <div className="surface p-3 text-center">
-                <p className="text-ink-muted text-[10px] uppercase tracking-wider mb-1">Time</p>
+                <p className="text-ink-muted text-[10px] uppercase tracking-wider font-display mb-1">Time</p>
                 <p className="text-ink font-mono">{formatTime(finalSeconds ?? 0)}</p>
               </div>
               <div className="surface p-3 text-center">
-                <p className="text-ink-muted text-[10px] uppercase tracking-wider mb-1">Hints</p>
+                <p className="text-ink-muted text-[10px] uppercase tracking-wider font-display mb-1">Hints</p>
                 <p className="text-ink font-mono">{hintsUsed}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="flex justify-center mb-3">
               <Button
                 variant="secondary"
                 onClick={() => void downloadPng()}
                 disabled={exportingPng || !cardData}
               >
                 <Download className="h-4 w-4" />
-                {exportingPng ? 'Exporting…' : 'PNG card'}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => void downloadVideo()}
-                disabled={exportingVideo || !cardData}
-              >
-                <Film className="h-4 w-4" />
-                {exportingVideo
-                  ? `Recording… ${Math.round(videoProgress * 100)}%`
-                  : 'Video (webm)'}
+                {exportingPng ? 'Exporting…' : 'Download PNG card'}
               </Button>
             </div>
 
@@ -795,7 +743,7 @@ export function SolvePage(): JSX.Element {
           </p>
           <p className="text-sm text-ink-muted mb-6">
             <span className="text-danger font-medium">No score is saved.</span> You can still
-            export a PNG or video of the solved board.
+            export a PNG of the solved board.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setForfeitConfirm(false)}>

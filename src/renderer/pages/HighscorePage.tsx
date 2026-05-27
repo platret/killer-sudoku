@@ -12,7 +12,7 @@ import { formatTime } from '@/lib/utils';
 import type { HighscoreEntry, Puzzle } from '@shared/types';
 
 function rankIcon(i: number): JSX.Element {
-  if (i === 0) return <Crown className="h-4 w-4 text-warning drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" />;
+  if (i === 0) return <Crown className="h-4 w-4 text-warning drop-shadow-[0_0_8px_rgba(244,167,44,0.6)]" />;
   if (i === 1) return <Medal className="h-4 w-4 text-ink" />;
   if (i === 2) return <Medal className="h-4 w-4 text-ink-muted" />;
   return <span className="text-ink-muted tabular-num text-xs w-4 text-center">{i + 1}</span>;
@@ -72,15 +72,15 @@ export function HighscorePage(): JSX.Element {
         </button>
         <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-warning mb-2 inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-warning shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
+            <p className="text-[10px] uppercase tracking-[0.24em] text-warning mb-3 inline-flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-warning shadow-[0_0_12px_rgba(244,167,44,0.6)]" />
               Leaderboard
             </p>
-            <h1 className="text-5xl font-bold tracking-tight leading-none inline-flex items-center gap-3">
-              <Trophy className="h-10 w-10 text-warning drop-shadow-[0_0_24px_rgba(251,191,36,0.4)]" />
+            <Trophy className="h-12 w-12 text-warning mb-2 drop-shadow-[0_0_24px_rgba(244,167,44,0.4)]" />
+            <h1 className="text-5xl md:text-6xl font-bold font-display tracking-tight leading-none">
               <span className="bg-hero-gradient bg-clip-text text-transparent">Highscores</span>
             </h1>
-            <p className="text-sm text-ink-muted mt-2">
+            <p className="text-sm text-ink-muted mt-3">
               {puzzle ? <>For <span className="text-ink font-medium">&ldquo;{puzzle.name}&rdquo;</span></> : 'Across every puzzle.'}
             </p>
           </div>
@@ -125,7 +125,7 @@ export function HighscorePage(): JSX.Element {
           />
         ) : (
           <div className="rounded-xl border border-line/70 bg-bg-panel/55 backdrop-blur-md overflow-hidden">
-            <div className="grid grid-cols-[40px_1fr_100px_80px_120px] gap-3 px-4 py-3 border-b border-line/60 text-[10px] uppercase tracking-wider text-ink-muted">
+            <div className="grid grid-cols-[40px_1fr_100px_80px_120px] gap-3 px-4 py-3 border-b border-line/60 text-[10px] uppercase tracking-wider font-display text-ink-muted">
               <span>#</span>
               <span>Player</span>
               <span className="text-right">Time</span>
