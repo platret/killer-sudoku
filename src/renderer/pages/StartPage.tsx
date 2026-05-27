@@ -1,7 +1,6 @@
 import { motion } from 'motion/react';
 import { ArrowRight, Grid3x3, Hash, Lightbulb, ShieldCheck } from 'lucide-react';
 import { ShaderBackground } from '@/components/animations/ShaderBackground';
-import { HeroCubes } from '@/components/animations/HeroCubes';
 import { Button } from '@/components/ui/Button';
 import { useApp } from '@/lib/store';
 
@@ -32,60 +31,66 @@ export function StartPage(): JSX.Element {
   const setView = useApp((s) => s.setView);
 
   return (
-    <div className="relative flex-1 overflow-hidden">
+    <div className="relative flex-1 overflow-y-auto">
       <ShaderBackground />
       <motion.section
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative z-10 max-w-6xl mx-auto px-10 pt-12 pb-20 flex-1"
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="relative z-10 max-w-4xl mx-auto px-10 pt-24 pb-20 text-center"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10 items-center mb-14">
-          <div className="flex flex-col items-start gap-4">
-            <h1 className="text-6xl md:text-7xl font-bold tracking-tight leading-[0.95]">
-              <span className="bg-hero-gradient bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(168,85,247,0.35)]">
-                Killer
-              </span>
-              <span className="text-ink">Sudoku</span>
-            </h1>
+        <motion.h1
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08, duration: 0.6, ease: 'easeOut' }}
+          className="text-7xl md:text-8xl font-bold tracking-tight leading-[0.95] mb-6"
+        >
+          <span className="bg-hero-gradient bg-clip-text text-transparent drop-shadow-[0_0_36px_rgba(168,85,247,0.4)]">
+            Killer
+          </span>
+          <span className="text-ink">Sudoku</span>
+        </motion.h1>
 
-            <p className="text-ink-muted max-w-xl text-base leading-relaxed">
-              A bold, dark, keyboard-first Killer Sudoku for desktop. Solve hand-crafted puzzles or
-              design your own — the engine guarantees a unique solution before anything is published.
-            </p>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.16, duration: 0.55 }}
+          className="text-ink-muted max-w-xl mx-auto text-base md:text-lg leading-relaxed mb-9"
+        >
+          A bold, dark, keyboard-first Killer Sudoku for desktop. Solve hand-crafted puzzles or
+          design your own — the engine guarantees a unique solution before anything is published.
+        </motion.p>
 
-            <div className="flex flex-wrap gap-3 mt-2">
-              <Button
-                size="lg"
-                onClick={() => setView({ kind: 'auth', mode: 'login' })}
-                className="shadow-glow"
-              >
-                Start playing <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => setView({ kind: 'auth', mode: 'register' })}
-              >
-                Create an account
-              </Button>
-            </div>
-          </div>
-
-          <div className="relative h-[300px] lg:h-[360px] hidden md:block">
-            <div className="absolute inset-0 bg-accent/15 blur-3xl rounded-full" aria-hidden />
-            <HeroCubes className="relative h-full w-full" />
-          </div>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.24, duration: 0.5 }}
+          className="flex flex-wrap justify-center gap-3 mb-16"
+        >
+          <Button
+            size="lg"
+            onClick={() => setView({ kind: 'auth', mode: 'login' })}
+            className="shadow-glow"
+          >
+            Start playing <ArrowRight className="h-4 w-4" />
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => setView({ kind: 'auth', mode: 'register' })}
+          >
+            Create an account
+          </Button>
+        </motion.div>
 
         <motion.ul
           initial="hidden"
           animate="show"
           variants={{
             hidden: {},
-            show: { transition: { staggerChildren: 0.07, delayChildren: 0.3 } }
+            show: { transition: { staggerChildren: 0.07, delayChildren: 0.36 } }
           }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-3"
+          className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left"
         >
           {RULES.map((r, i) => (
             <motion.li

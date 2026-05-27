@@ -22,7 +22,7 @@ import { HomeBackdrop } from '@/components/animations/HomeBackdrop';
 import { ConfettiBurst } from '@/components/animations/ConfettiBurst';
 import { toast } from '@/components/ui/Toaster';
 import { useApp } from '@/lib/store';
-import { api } from '@/lib/ipc';
+import { api, safeApi } from '@/lib/ipc';
 import { difficultyLabel, formatTime } from '@/lib/utils';
 import { exportPngBase64, exportWebmBase64, type CardData } from '@/lib/exportCard';
 import type { Cell as CellValue, Grid as GridValues, Puzzle } from '@shared/types';
@@ -411,10 +411,24 @@ export function SolvePage(): JSX.Element {
 
   const downloadPng = useCallback(async () => {
     if (!cardData || exportingPng) return;
+    const fileApi = safeApi()?.file;
+    if (!fileApi) {
+      toast.error('File save bridge unavailable — restart the app');
+      return;
+    }
     setExportingPng(true);
+    let b64 = '';
     try {
-      const b64 = exportPngBase64(cardData);
-      const res = await api().file.save({
+      b64 = exportPngBase64(cardData);
+      if (!b64) throw new Error('Canvas returned empty PNG data');
+    } catch (err) {
+      console.error('[PNG] draw failed:', err);
+      toast.error(`Could not render PNG (${err instanceof Error ? err.message : 'unknown error'})`);
+      setExportingPng(false);
+      return;
+    }
+    try {
+      const res = await fileApi.save({
         dataBase64: b64,
         defaultName: stampedName('png'),
         filters: [{ name: 'PNG image', extensions: ['png'] }]
@@ -422,10 +436,14 @@ export function SolvePage(): JSX.Element {
       if (res.success && res.path) {
         toast.success(`Saved ${res.path.split('/').pop()}`);
       } else if (res.error && res.error !== 'Cancelled') {
-        toast.error(res.error);
+        console.error('[PNG] save failed:', res.error);
+        toast.error(`PNG save failed: ${res.error}`);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'PNG export failed');
+      console.error('[PNG] ipc failed:', err);
+      toast.error(
+        `PNG export failed (${err instanceof Error ? err.message : 'IPC error'})`
+      );
     } finally {
       setExportingPng(false);
     }
@@ -433,11 +451,32 @@ export function SolvePage(): JSX.Element {
 
   const downloadVideo = useCallback(async () => {
     if (!cardData || exportingVideo) return;
+    const fileApi = safeApi()?.file;
+    if (!fileApi) {
+      toast.error('File save bridge unavailable — restart the app');
+      return;
+    }
+    if (typeof MediaRecorder === 'undefined') {
+      toast.error('Video recording unsupported in this build');
+      return;
+    }
     setExportingVideo(true);
     setVideoProgress(0);
+    let b64 = '';
     try {
-      const b64 = await exportWebmBase64(cardData, 4200, setVideoProgress);
-      const res = await api().file.save({
+      b64 = await exportWebmBase64(cardData, 4200, setVideoProgress);
+      if (!b64) throw new Error('Recorder returned empty video data');
+    } catch (err) {
+      console.error('[Video] record failed:', err);
+      toast.error(
+        `Could not record video (${err instanceof Error ? err.message : 'unknown error'})`
+      );
+      setExportingVideo(false);
+      setVideoProgress(0);
+      return;
+    }
+    try {
+      const res = await fileApi.save({
         dataBase64: b64,
         defaultName: stampedName('webm'),
         filters: [{ name: 'WebM video', extensions: ['webm'] }]
@@ -445,10 +484,14 @@ export function SolvePage(): JSX.Element {
       if (res.success && res.path) {
         toast.success(`Saved ${res.path.split('/').pop()}`);
       } else if (res.error && res.error !== 'Cancelled') {
-        toast.error(res.error);
+        console.error('[Video] save failed:', res.error);
+        toast.error(`Video save failed: ${res.error}`);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Video export failed');
+      console.error('[Video] ipc failed:', err);
+      toast.error(
+        `Video export failed (${err instanceof Error ? err.message : 'IPC error'})`
+      );
     } finally {
       setExportingVideo(false);
       setVideoProgress(0);

@@ -5,6 +5,7 @@ import { DbErrorScreen } from './components/layout/DbErrorScreen';
 import { Toaster } from './components/ui/Toaster';
 import { CommandPalette } from './components/palette/CommandPalette';
 import { ShortcutsOverlay } from './components/shortcuts/ShortcutsOverlay';
+import { SplashScreen } from './components/animations/SplashScreen';
 import { StartPage } from './pages/StartPage';
 import { AuthPage } from './pages/AuthPage';
 import { PuzzleListPage } from './pages/PuzzleListPage';
@@ -105,6 +106,7 @@ export default function App(): JSX.Element {
   const view = useApp((s) => s.view);
   const setReducedMotion = useApp((s) => s.setReducedMotion);
   const [dbReady, setDbReady] = useState<{ ok: boolean; error?: string } | null>(null);
+  const [splashDone, setSplashDone] = useState(false);
   const apiPresent = hasApi();
 
   useEffect(() => {
@@ -188,6 +190,7 @@ export default function App(): JSX.Element {
       {apiPresent ? <CommandPalette /> : null}
       {apiPresent ? <ShortcutsOverlay /> : null}
       <Toaster />
+      {!splashDone ? <SplashScreen onComplete={() => setSplashDone(true)} /> : null}
     </div>
   );
 }
